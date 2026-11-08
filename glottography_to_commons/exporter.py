@@ -350,7 +350,7 @@ class ManualUploadExporter:
         """Generate interactive single-file HTML manual upload portal."""
         html_path = self.export_dir / "index.html"
 
-        # Prepare JSON payload embedded for quick filtering and clipboard copying
+        # Prepare JSON metadata payload embedded for quick filtering and clipboard copying
         embedded_items = []
         for it in items:
             embedded_items.append({
@@ -366,7 +366,6 @@ class ManualUploadExporter:
                 "features": it.features_count,
                 "map_rel": it.map_rel_path,
                 "desc_rel": it.description_rel_path,
-                "json_str": it.json_content,
                 "sources": it.sources_wikitext,
             })
 
@@ -484,7 +483,12 @@ class ManualUploadExporter:
       color: #495057;
     }}
     tr:hover {{ background-color: #fbfcfd; }}
-    .btn-group {{ display: flex; gap: 6px; }}
+    .btn-group {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+    .pagination-bar {{
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }}
     .toast {{
       position: fixed;
       bottom: 24px;
@@ -537,18 +541,25 @@ class ManualUploadExporter:
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
+
+    <div class="pagination-bar">
+      <button id="loadMoreBtn" class="btn btn-outline" style="display:none; padding: 10px 24px; font-size: 14px;" onclick="loadMore()">Load More</button>
+    </div>
   </div>
 
   <div id="toast" class="toast">Copied to clipboard!</div>
 
   <script>
     const items = {items_json};
+    let currentList = items;
+    let displayedCount = 100;
+    const PAGE_SIZE = 100;
 
     function showToast(msg) {{
       const t = document.getElementById("toast");
       t.textContent = msg;
       t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), 2200);
+      setTimeout(() => t.classList.remove("show"), 2500);
     }}
 
     function copyToClipboard(text, successMsg) {{
@@ -564,27 +575,31 @@ class ManualUploadExporter:
       copyToClipboard(wiki, "Category wikitext copied to clipboard!");
     }}
 
-    function copyMapJson(index) {{
-      const it = items[index];
-      copyToClipboard(it.json_str, `Copied JSON for ${{it.lang}} (${{it.glottocode}}) to clipboard!`);
+    async function copyMapJson(index) {{
+      const it = currentList[index];
+      try {{
+        const res = await fetch(it.map_rel);
+        if (!res.ok) throw new Error("Status " + res.status);
+        const text = await res.text();
+        copyToClipboard(text, `Copied JSON for ${{it.lang}} (${{it.glottocode}}) to clipboard!`);
+      }} catch (err) {{
+        window.open(it.map_rel, '_blank');
+        showToast(`Opened ${{it.lang}} .map in new tab`);
+      }}
     }}
 
     function copySourcesWikitext(index) {{
-      const it = items[index];
+      const it = currentList[index];
       copyToClipboard(it.sources, `Copied sources wikitext for ${{it.lang}} to clipboard!`);
     }}
 
-    function renderTable(list) {{
+    function renderRows(start, count) {{
       const tbody = document.getElementById("tableBody");
-      tbody.innerHTML = "";
-      document.getElementById("countBadge").textContent = `${{list.length}} maps`;
+      const end = Math.min(start + count, currentList.length);
+      const fragment = document.createDocumentFragment();
 
-      if (list.length === 0) {{
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #6c757d; padding: 24px;">No matching maps found.</td></tr>`;
-        return;
-      }}
-
-      list.forEach((it, idx) => {{
+      for (let idx = start; idx < end; idx++) {{
+        const it = currentList[idx];
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td><strong>${{it.lang}}</strong></td>
@@ -601,12 +616,45 @@ class ManualUploadExporter:
             <div class="btn-group">
               <a href="${{it.edit_url}}" target="_blank" class="btn btn-primary" title="Open editor on Wikimedia Commons">Open on Commons</a>
               <button class="btn btn-outline" onclick="copyMapJson(${{idx}})" title="Copy valid .map JSON to clipboard">Copy JSON</button>
+              <a href="${{it.map_rel}}" target="_blank" class="btn btn-outline" title="Open .map file">.map</a>
+              <a href="${{it.desc_rel}}" target="_blank" class="btn btn-outline" title="Open provenance sheet">Provenance</a>
               <button class="btn btn-outline" onclick="copySourcesWikitext(${{idx}})" title="Copy sources citation wikitext">Copy Sources</button>
             </div>
           </td>
         `;
-        tbody.appendChild(tr);
-      }});
+        fragment.appendChild(tr);
+      }}
+      tbody.appendChild(fragment);
+
+      const loadMoreBtn = document.getElementById("loadMoreBtn");
+      if (end < currentList.length) {{
+        loadMoreBtn.style.display = "inline-block";
+        loadMoreBtn.textContent = `Load More (${{currentList.length - end}} remaining)`;
+      }} else {{
+        loadMoreBtn.style.display = "none";
+      }}
+    }}
+
+    function renderTable(list) {{
+      currentList = list;
+      displayedCount = PAGE_SIZE;
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+      document.getElementById("countBadge").textContent = `${{list.length}} maps`;
+
+      if (list.length === 0) {{
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #6c757d; padding: 24px;">No matching maps found.</td></tr>`;
+        document.getElementById("loadMoreBtn").style.display = "none";
+        return;
+      }}
+
+      renderRows(0, displayedCount);
+    }}
+
+    function loadMore() {{
+      const start = displayedCount;
+      displayedCount += PAGE_SIZE;
+      renderRows(start, PAGE_SIZE);
     }}
 
     function filterTable() {{
