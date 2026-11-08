@@ -1,0 +1,47 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "english",
+      "properties": {
+        "cldf:languageReference": "english",
+        "name": "English",
+        "glottocode": "stan1295"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-0.5, 51.2],
+            [0.2, 51.2],
+            [0.2, 51.8],
+            [-0.5, 51.8],
+            [-0.5, 51.2]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "quechua",
+      "properties": {
+        "cldf:languageReference": "quechua",
+        "name": "Southern Quechua",
+        "glottocode": "sout2991"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-72.0, -14.0],
+            [-71.0, -14.0],
+            [-71.0, -13.0],
+            [-72.0, -13.0],
+            [-72.0, -14.0]
+          ]
+        ]
+      }
+    }
+  ]
+}

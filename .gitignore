@@ -1,0 +1,17 @@
+# Local data and cache
+data/
+*.db
+*.sqlite
+*.map
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Credentials
+.env

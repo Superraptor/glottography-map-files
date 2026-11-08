@@ -1,0 +1,30 @@
+{
+  "id": 15287258,
+  "doi": "10.5281/zenodo.15287258",
+  "title": "Glottography dataset derived from Asher and Moseley (2007) Atlas of the World's Languages",
+  "metadata": {
+    "title": "Glottography dataset derived from Asher and Moseley (2007) Atlas of the World's Languages",
+    "publication_date": "2021-04-15",
+    "creators": [
+      {
+        "name": "Asher, R. E."
+      },
+      {
+        "name": "Moseley, Christopher J."
+      }
+    ],
+    "description": "Geolinguistic dataset mapping global language distributions from Asher and Moseley (2007).",
+    "license": {
+      "id": "CC-BY-4.0"
+    }
+  },
+  "files": [
+    {
+      "key": "glottography_dataset_ashermoseley2007.zip",
+      "size": 1048576,
+      "links": {
+        "content": "https://zenodo.org/api/records/15287258/files/glottography_dataset_ashermoseley2007.zip/content"
+      }
+    }
+  ]
+}

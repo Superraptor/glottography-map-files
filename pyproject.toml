@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glottography-to-commons"
+version = "1.0.0"
+description = "Download Glottography datasets from Zenodo and upload as .map files per language to Wikimedia Commons."
+readme = "README.md"
+authors = [{ name = "LanguageMaps Contributors" }]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = ["linguistics", "glottography", "wikimedia-commons", "geojson", "kartographer", "zenodo", "cldf"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+[project.scripts]
+glottography-to-commons = "main:main"

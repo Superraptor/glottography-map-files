@@ -1,0 +1,5 @@
+# The core pipeline runs with zero external dependencies using the Python standard library.
+# Optional dependencies for development, extended GIS manipulation, or alternative HTTP clients:
+# requests>=2.31.0
+# shapely>=2.0.0
+# pycldf>=1.35.0
