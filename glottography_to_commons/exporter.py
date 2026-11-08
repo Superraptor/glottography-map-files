@@ -67,8 +67,19 @@ class ManualUploadExporter:
         map_files = list(self.config.maps_output_dir.glob("*.map"))
         logger.info("Found %d generated .map files to prepare for manual upload.", len(map_files))
 
-        # Lookup datasets from tracker for rich metadata
+        # Lookup datasets and maps from tracker for rich metadata
         datasets_lookup = {d["record_id"]: d for d in self.tracker.get_all_datasets()}
+        maps_lookup = {}
+        with self.tracker._connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT m.map_path, m.page_title, m.glottocode, m.language_name, m.dataset_slug, d.doi, d.title as ds_title
+                FROM maps m
+                LEFT JOIN datasets d ON m.record_id = d.record_id
+            """)
+            for row in cursor.fetchall():
+                if row["map_path"]:
+                    maps_lookup[Path(row["map_path"]).name] = dict(row)
 
         for mf in map_files:
             try:
@@ -78,45 +89,52 @@ class ManualUploadExporter:
                 logger.error("Failed to read map file %s: %s", mf.name, e)
                 continue
 
+            db_info = maps_lookup.get(mf.name, {})
+
             # Extract fields
             lic = map_json.get("license", "CC-BY-4.0")
             desc_en = map_json.get("description", {}).get("en", "")
             sources = map_json.get("sources", "")
             features = map_json.get("data", {}).get("features", [])
 
-            # Extract language name and glottocode from features or title
-            lang_name = ""
-            glottocode = ""
-            if features:
+            # Language name and glottocode
+            lang_name = db_info.get("language_name")
+            glottocode = db_info.get("glottocode")
+
+            if not lang_name and features:
                 lang_name = features[0].get("properties", {}).get("title", "")
+            if not glottocode and features:
                 desc_text = features[0].get("properties", {}).get("description", "")
                 if "Glottocode:" in desc_text:
                     glottocode = desc_text.split("Glottocode:")[-1].split("|")[0].strip()
 
             base_name = mf.stem
-            # Derive page title
-            page_title = f"Data:{base_name.replace('_', ' ').replace(' - ', ' - ')}.map"
-            if not page_title.startswith("Data:Glottography"):
-                page_title = f"Data:Glottography - {base_name}.map"
+            # Page title
+            page_title = db_info.get("page_title")
+            if not page_title:
+                clean_lang = lang_name or base_name
+                gc_part = f" ({glottocode})" if glottocode and glottocode != "unknown" else ""
+                page_title = f"Data:Glottography - {clean_lang}{gc_part}.map"
 
             # 1-Click URLs
             quoted_title = urllib.parse.quote(page_title.replace(" ", "_"))
             edit_url = f"https://commons.wikimedia.org/w/index.php?title={quoted_title}&action=edit"
             view_url = f"https://commons.wikimedia.org/wiki/{quoted_title}"
 
-            # Extract DOI and dataset info from sources wikitext
-            doi = ""
-            for line in sources.splitlines():
-                if "DOI" in line and "10.5281/zenodo." in line:
-                    parts = line.split("10.5281/zenodo.")
-                    if len(parts) > 1:
-                        doi = "10.5281/zenodo." + parts[1].split()[0].rstrip("]")
+            # Extract DOI and dataset info
+            doi = db_info.get("doi") or ""
+            if not doi:
+                for line in sources.splitlines():
+                    if "DOI" in line and "10.5281/zenodo." in line:
+                        parts = line.split("10.5281/zenodo.")
+                        if len(parts) > 1:
+                            doi = "10.5281/zenodo." + parts[1].split()[0].rstrip("]")
 
-            dataset_title = ""
+            dataset_title = db_info.get("ds_title") or ""
             creators = ""
             pub_date = ""
             for line in sources.splitlines():
-                if "'''Dataset''':" in line:
+                if not dataset_title and "'''Dataset''':" in line:
                     dataset_title = line.replace("* '''Dataset''':", "").strip().strip("''")
                 elif "'''Creators / Cartographers''':" in line:
                     creators = line.replace("* '''Creators / Cartographers''':", "").strip()
@@ -610,3 +628,4 @@ class ManualUploadExporter:
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
         logger.info("Saved Interactive HTML Portal: %s", html_path.name)
+

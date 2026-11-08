@@ -254,6 +254,7 @@ class ZenodoClient:
         # Download files
         for zf in record.files:
             target_path = download_dir / zf.filename
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             if target_path.exists() and target_path.stat().st_size > 0:
                 logger.info("File already downloaded: %s", target_path.name)
             else:
@@ -270,6 +271,7 @@ class ZenodoClient:
             elif zf.filename.lower().endswith((".geojson", ".json", ".csv")):
                 # Copy standalone data files into extracted dir as well
                 dest_file = extracted_dir / zf.filename
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
                 with open(target_path, "rb") as src, open(dest_file, "wb") as dst:
                     dst.write(src.read())
 
