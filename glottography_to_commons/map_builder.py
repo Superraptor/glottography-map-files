@@ -175,8 +175,12 @@ class MapBuilder:
             content_bytes = content_json.encode("utf-8")
             size_bytes = len(content_bytes)
 
-        # Generate local filename based on title
-        filename = slugify(page_title.replace("Data:", "").replace(".map", "")) + ".map"
+        # Generate local filename based on title (bounded to prevent Windows MAX_PATH errors)
+        base_slug = slugify(page_title.replace("Data:", "").replace(".map", ""))
+        if len(base_slug) > 75:
+            import hashlib
+            base_slug = f"{base_slug[:75]}_{hashlib.md5(base_slug.encode()).hexdigest()[:6]}"
+        filename = f"{base_slug}.map"
         file_path = self.config.maps_output_dir / filename
 
         with open(file_path, "w", encoding="utf-8") as f:

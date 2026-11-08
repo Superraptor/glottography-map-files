@@ -141,15 +141,21 @@ class ManualUploadExporter:
                 elif "'''Publication Date''':" in line:
                     pub_date = line.replace("* '''Publication Date''':", "").strip()
 
+            # Shorten base name to stay well within Windows MAX_PATH (260 chars) limit
+            short_base = base_name[:75]
+            if len(base_name) > 75:
+                import hashlib
+                short_base = f"{short_base}_{hashlib.md5(base_name.encode()).hexdigest()[:6]}"
+
             # Copy/Save .map file into export directory
-            map_filename = f"{base_name}.map"
+            map_filename = f"{short_base}.map"
             target_map_path = self.maps_dir / map_filename
             json_str = json.dumps(map_json, indent=2, ensure_ascii=False)
             with open(target_map_path, "w", encoding="utf-8") as f:
                 f.write(json_str)
 
             # Build standalone human-readable description & instructions file
-            desc_filename = f"{base_name}_provenance.txt"
+            desc_filename = f"{short_base}_provenance.txt"
             target_desc_path = self.desc_dir / desc_filename
             desc_text = self._build_standalone_description(
                 page_title=page_title,
