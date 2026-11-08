@@ -50,7 +50,7 @@ class Config:
     # MediaWiki categorization
     category_name: str = "Map data of languages"
     talk_category: str = "Map data of languages"
-    parent_linguistic_category: str = "Linguistic maps by language"
+    parent_linguistic_category: str = "Linguistic maps by language mapped"
     parent_category: str = "Map data by object"
     parent_sortkey: str = "Languages"
 
@@ -126,7 +126,7 @@ class Config:
             "user_agent": os.getenv("USER_AGENT", "GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)"),
             "category_name": os.getenv("CATEGORY_NAME", "Map data of languages"),
             "talk_category": os.getenv("TALK_CATEGORY", "Map data of languages"),
-            "parent_linguistic_category": os.getenv("PARENT_LINGUISTIC_CATEGORY", "Linguistic maps by language"),
+            "parent_linguistic_category": os.getenv("PARENT_LINGUISTIC_CATEGORY", "Linguistic maps by language mapped"),
             "parent_category": os.getenv("PARENT_CATEGORY", "Map data by object"),
             "parent_sortkey": os.getenv("PARENT_SORTKEY", "Languages"),
             "request_delay": get_float("REQUEST_DELAY", 2.0),

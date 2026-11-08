@@ -325,13 +325,13 @@ class ManualUploadExporter:
             "# Glottography Manual Upload Manifest",
             "",
             f"Total language maps prepared: **{len(items)}**  ",
-            f"- **Map Data Categories:** `Category:<Language>-language linguistic maps` under **`Category:{self.config.parent_linguistic_category}`**  ",
+            f"- **Map Data Categories:** `Category:Linguistic maps of the <Language> language` under **`Category:{self.config.parent_linguistic_category}`**  ",
             f"- **Map Data Talk Catalog:** **`Category:{self.config.talk_category}`**  ",
             "",
             "### 3-Step Instructions for Manual Upload",
             "1. **Upload Map Data**: Click **[Upload .map]**, paste the `.map` JSON payload into the Commons editor, and save.",
             f"2. **Categorize Discussion Page**: Click **[Edit Talk Page]**, paste `[[Category:{self.config.talk_category}|<SortKey>]]`, and save.",
-            f"3. **Ensure Category**: If `Category:<Language>-language linguistic maps` does not exist yet, click **[Create Category]** and save `[[Category:{self.config.parent_linguistic_category}]]`.",
+            f"3. **Ensure Category**: If `Category:Linguistic maps of the <Language> language` does not exist yet, click **[Create Category]** and save `[[Category:{self.config.parent_linguistic_category}]]`.",
             "",
             "---",
             "",
@@ -584,7 +584,7 @@ class ManualUploadExporter:
       <div class="alert-box">
         <strong>Wikimedia Commons Categorization Architecture:</strong>
         <ul style="margin-left: 20px; margin-top: 6px;">
-          <li><strong>Map Data Files (.map)</strong> belong in individual language categories under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_parent)}" target="_blank">Category:{cat_parent}</a> (e.g. <code>Category:Northern Ju-language linguistic maps</code>).</li>
+          <li><strong>Map Data Files (.map)</strong> belong in individual language categories under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_parent)}" target="_blank">Category:{cat_parent}</a> (e.g. <code>Category:Linguistic maps of the Northern Ju language</code>).</li>
           <li><strong>Discussion Pages (Data talk:)</strong> are cataloged under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_talk)}" target="_blank">Category:{cat_talk}</a>.</li>
         </ul>
       </div>

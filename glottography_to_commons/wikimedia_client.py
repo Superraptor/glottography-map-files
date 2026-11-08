@@ -311,14 +311,14 @@ class WikimediaClient:
 
     def ensure_language_category(self, language_name: str) -> bool:
         """
-        Ensures 'Category:<Language>-language linguistic maps' exists under
-        'Category:Linguistic maps by language'.
+        Ensures 'Category:Linguistic maps of the <Language> language' exists under
+        'Category:Linguistic maps by language mapped'.
         """
         from glottography_to_commons.map_builder import MapBuilder
         lang_cat = MapBuilder.get_language_map_category(language_name)
         cat_title = f"Category:{lang_cat}"
         wikitext = f"[[Category:{self.config.parent_linguistic_category}]]\n"
-        summary = f"Creating linguistic map subcategory for {language_name}"
+        summary = f"Creating linguistic map subcategory for {language_name} under [[Category:{self.config.parent_linguistic_category}]]"
 
         if self.config.dry_run:
             logger.info("[DRY RUN] Would ensure language category %s with content: %s", cat_title, wikitext.strip())

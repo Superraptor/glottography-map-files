@@ -1,9 +1,9 @@
 # Glottography to Wikimedia Commons Map Data Pipeline
 
-Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glottography Community](https://zenodo.org/communities/glottography/)**, process and split the speaker-area geometries **per language**, and upload them as structured `.map` files (in the `Data:` namespace) with complete provenance and licensing to **[Wikimedia Commons](https://commons.wikimedia.org/)** under dedicated categories:
+Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glottography Community](https://zenodo.org/communities/glottography/)**, process and split the speaker-area geometries **per language**, and upload them as structured `.map` files (in the `Data:` namespace) with complete provenance and licensing to **[Wikimedia Commons](https://commons.wikimedia.org/)** adhering to Commons linguistic mapping conventions:
 
-> **[Category:Map data of languages](https://commons.wikimedia.org/wiki/Category:Map_data_of_languages)**  
-> *(Subcategory of [Category:Map data by object](https://commons.wikimedia.org/wiki/Category:Map_data_by_object))* and each language's own category (`Category:<Language Name>`).
+> **Map Data Files (`Data:*.map`)**: Categorized into language-specific categories like `Category:Linguistic maps of the <Language> language` under **[Category:Linguistic maps by language mapped](https://commons.wikimedia.org/wiki/Category:Linguistic_maps_by_language_mapped)**  
+> **Map Talk Pages (`Data talk:*.map`)**: Cataloged under **[Category:Map data of languages](https://commons.wikimedia.org/wiki/Category:Map_data_of_languages)** (`[[Category:Map data of languages|<First letter>]]`)
 
 ---
 
@@ -107,8 +107,8 @@ Each uploaded language map page (e.g. `Data:Glottography - English (stan1295) - 
   "sources": "Data derived from the [https://zenodo.org/communities/glottography Glottography project] on Zenodo.\n\n* '''Dataset''': ''Atlas of the World's Languages (2007)''\n* '''Zenodo Record / DOI''': [https://doi.org/10.5281/zenodo.15287258 10.5281/zenodo.15287258]\n* '''Creators / Cartographers''': Asher, R. E.; Moseley, Christopher J.\n* '''Publication Date''': 2021-04-15\n* '''Language''': English\n* '''Glottocode''': [https://glottolog.org/resource/languoid/id/stan1295 stan1295]\n* '''ISO 639-3''': [https://iso639-3.sil.org/code/eng eng]\n* '''License''': CC-BY-4.0\n* '''Glottography Project Community''': [https://zenodo.org/communities/glottography https://zenodo.org/communities/glottography]",
   "mediawikiCategories": [
     {
-      "name": "Map data of languages",
-      "sort": "English"
+      "name": "Linguistic maps of the English language",
+      "sort": ""
     }
   ],
   "data": {

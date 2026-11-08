@@ -60,7 +60,7 @@ class TestExporter(unittest.TestCase):
         item = items[0]
         self.assertEqual(item.language_name, "English")
         self.assertEqual(item.glottocode, "stan1295")
-        self.assertEqual(item.lang_category, "English-language linguistic maps")
+        self.assertEqual(item.lang_category, "Linguistic maps of the English language")
         self.assertIn("Data_talk", item.talk_edit_url)
         self.assertIn("commons.wikimedia.org", item.commons_edit_url)
 

@@ -115,17 +115,28 @@ class MapBuilder:
     @staticmethod
     def get_language_map_category(language_name: str) -> str:
         """
-        Derives the linguistic map category name under 'Category:Linguistic maps by language'.
-        e.g. 'Northern Ju' -> 'Northern Ju-language linguistic maps'
-             'English' -> 'English-language linguistic maps'
-             'Modern Greek' -> 'Modern Greek-language linguistic maps'
+        Derives the linguistic map category name under 'Category:Linguistic maps by language mapped'.
+        e.g. 'Northern Ju' -> 'Linguistic maps of the Northern Ju language'
+             'English' -> 'Linguistic maps of the English language'
+             'Modern Greek' -> 'Linguistic maps of the Modern Greek language'
         """
         clean = language_name.strip()
         if not clean or clean.lower().startswith("language unknown"):
-            return "Linguistic maps by language"
-        if clean.lower().endswith("language"):
-            return f"{clean} linguistic maps"
-        return f"{clean}-language linguistic maps"
+            return "Linguistic maps by language mapped"
+
+        lower = clean.lower()
+        if lower.endswith("languages"):
+            if lower.startswith("the "):
+                return f"Linguistic maps of {clean}"
+            return f"Linguistic maps of the {clean}"
+        elif lower.endswith("language"):
+            if lower.startswith("the "):
+                return f"Linguistic maps of {clean}"
+            return f"Linguistic maps of the {clean}"
+        else:
+            if lower.startswith("the "):
+                return f"Linguistic maps of {clean} language"
+            return f"Linguistic maps of the {clean} language"
 
     def build_map_data(
         self,
@@ -142,13 +153,13 @@ class MapBuilder:
         page_title = self.build_page_title(bundle, record)
 
         # Main category for .map file:
-        # Placed under Category:<Language>-language linguistic maps
-        # (subcategorized under Category:Linguistic maps by language)
+        # Placed under Category:Linguistic maps of the <Language> language
+        # (subcategorized under Category:Linguistic maps by language mapped)
         lang_cat = self.get_language_map_category(bundle.clean_name)
         categories = [
             {
                 "name": lang_cat,
-                "sort": bundle.clean_name
+                "sort": ""
             }
         ]
 
