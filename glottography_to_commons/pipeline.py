@@ -154,11 +154,12 @@ class Pipeline:
         # Authenticate if credentials available
         self.wikimedia.login()
 
-        # Ensure parent category and subcategory exist
+        # Ensure parent category, bot user page, and subcategory exist
         try:
             self.wikimedia.ensure_category()
+            self.wikimedia.ensure_bot_userpage()
         except Exception as e:
-            logger.error("Error ensuring category %s exists: %s", self.config.category_name, e)
+            logger.error("Error during pre-upload initialization: %s", e)
             if not self.config.dry_run:
                 raise
 

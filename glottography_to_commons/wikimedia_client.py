@@ -344,6 +344,67 @@ class WikimediaClient:
         res = self._api_request("POST", {"action": "edit"}, data=edit_data)
         return res.get("edit", {}).get("result") == "Success"
 
+    def build_bot_userpage_wikitext(self) -> str:
+        """
+        Generates standard Wikimedia Commons Bot User Page documentation
+        conforming to Commons:Bots and MediaWiki bot policy.
+        """
+        edits_per_min = int(60.0 / max(self.config.request_delay, 1.0))
+        lines = [
+            "{{Bot|operator=" + self.config.bot_operator + "}}",
+            "",
+            "== Bot Information ==",
+            f"* '''Operator''': [[User:{self.config.bot_operator}|{self.config.bot_operator}]] (contact via [[User talk:{self.config.bot_operator}|talk page]] or [https://github.com/Superraptor/glottography-map-files/issues repository issues])",
+            f"* '''Tasks''': Ingests peer-reviewed geographical language distribution datasets from the [https://zenodo.org/communities/glottography Zenodo Glottography community] into the Commons <code>Data:</code> namespace as standardized <code>.map</code> files (JsonConfig) with full attribution, provenance (DOIs, Glottolog identifiers, ISO 639-3 codes, cartographers, CC-BY-4.0 licenses), categorizes maps into [[Category:Linguistic maps by language mapped]], and catalogs discussion pages in [[Category:Map data of languages]].",
+            f"* '''Operation''': Manually assisted and supervised batch execution with SQLite state tracking and automated JSON schema validation.",
+            f"* '''When''': Intermittent (executed during off-peak hours or in scheduled supervised batches).",
+            f"* '''Maximum edit rate''': ~{edits_per_min} edits per minute (delay of {self.config.request_delay}s between edits; strictly enforces <code>maxlag={self.config.maxlag}</code> and exponential backoff).",
+            f"* '''Language''': Python 3.11 ([https://github.com/Superraptor/glottography-map-files glottography-map-files]).",
+            "",
+            "== Technical Compliance & Safety ==",
+            f"* '''Emergency Shutoff''': Halts immediately if blocked, if talk page messages are received, or on consecutive HTTP 429/503 server errors.",
+            f"* '''Maxlag Throttling''': Respects Wikimedia server load with <code>maxlag={self.config.maxlag}</code>.",
+            f"* '''Namespaces''': Restricts write operations strictly to <code>Data:</code> (Map.JsonConfig), <code>Data talk:</code>, and <code>Category:</code>.",
+            f"* '''Attribution & Provenance''': Every map includes author/cartographer citation, Zenodo record DOI, Glottolog ID, ISO 639-3 code, and CC-BY-4.0 license.",
+            "",
+            "[[Category:Commons bots]]",
+        ]
+        return "\n".join(lines)
+
+    def ensure_bot_userpage(self) -> bool:
+        """
+        Ensures the bot user page exists on Commons with standard bot documentation.
+        """
+        if not self.config.commons_username:
+            return False
+        bot_username = self.config.commons_username.split("@")[0]
+        userpage_title = f"User:{bot_username}"
+        wikitext = self.build_bot_userpage_wikitext()
+        summary = "Creating/updating bot user page complying with Commons:Bots policy"
+
+        if self.config.dry_run:
+            logger.info("[DRY RUN] Would ensure bot user page %s", userpage_title)
+            return True
+
+        exists, _ = self.page_exists(userpage_title)
+        if exists:
+            return True
+
+        logger.info("Creating bot user page %s...", userpage_title)
+        token = self.get_csrf_token()
+        edit_data = {
+            "action": "edit",
+            "title": userpage_title,
+            "text": wikitext,
+            "summary": summary,
+            "token": token,
+            "bot": "1",
+            "assert": "user" if self.is_authenticated else "anon",
+            "maxlag": str(self.config.maxlag),
+        }
+        res = self._api_request("POST", {"action": "edit"}, data=edit_data)
+        return res.get("edit", {}).get("result") == "Success"
+
     def upload_map(
         self,
         page_title: str,

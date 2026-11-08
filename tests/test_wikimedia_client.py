@@ -31,6 +31,22 @@ class TestWikimediaClient(unittest.TestCase):
         self.assertEqual(res["page_title"], title)
 
 
+    def test_build_bot_userpage_wikitext(self):
+        wikitext = self.client.build_bot_userpage_wikitext()
+        self.assertIn("{{Bot|operator=Superraptor}}", wikitext)
+        self.assertIn("'''Operator''':", wikitext)
+        self.assertIn("'''Tasks''':", wikitext)
+        self.assertIn("'''Operation''':", wikitext)
+        self.assertIn("'''When''':", wikitext)
+        self.assertIn("'''Maximum edit rate''':", wikitext)
+        self.assertIn("'''Language''':", wikitext)
+        self.assertIn("Category:Commons bots", wikitext)
+
+    def test_dry_run_ensure_bot_userpage(self):
+        self.config.commons_username = "TestBot@BotPassword"
+        self.assertTrue(self.client.ensure_bot_userpage())
+
+
 if __name__ == "__main__":
     unittest.main()
 

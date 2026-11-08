@@ -12,7 +12,7 @@ Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glo
 - [Overview & Architecture](#overview--architecture)
 - [Live Production Examples on Wikimedia Commons](#live-production-examples-on-wikimedia-commons)
 - [Wikimedia Commons Map Data Schema](#wikimedia-commons-map-data-schema)
-- [Compliance & Rate Limiting](#compliance--rate-limiting)
+- [Wikimedia Commons Bot Policy & Compliance](#wikimedia-commons-bot-policy--compliance)
 - [Repository Structure](#repository-structure)
 - [Prerequisites & Installation](#prerequisites--installation)
 - [Configuration](#configuration)
@@ -153,11 +153,37 @@ Each uploaded language map page (e.g. `Data:Glottography - English (stan1295) - 
 
 ---
 
-## Compliance & Rate Limiting
+## Wikimedia Commons Bot Policy & Compliance
 
-The pipeline is designed in strict accordance with the [Wikimedia User-Agent policy](https://meta.wikimedia.org/wiki/User-Agent_policy) and [Wikimedia Bot policy](https://commons.wikimedia.org/wiki/Commons:Bots):
+The bot operations and codebase adhere strictly to [Wikimedia Commons Bot Policy (`Commons:Bots`)](https://commons.wikimedia.org/wiki/Commons:Bots), [MediaWiki Bot Policy](https://www.mediawiki.org/wiki/Manual:Bots), and the [User-Agent Policy](https://meta.wikimedia.org/wiki/User-Agent_policy). See [BOT_POLICY.md](BOT_POLICY.md) for the full policy documentation and bot flag application template.
 
-- **User-Agent:** All HTTP requests include a customized, descriptive User-Agent header containing tool identification and contact information.
+### Bot User Page Specification (`User:<BotName>`)
+
+Per Commons bot guidelines, the bot user page must include the following information and `{{Bot}}` declaration:
+
+```wikitext
+{{Bot|operator=Superraptor}}
+
+== Bot Information ==
+* '''Operator''': [[User:Superraptor|Superraptor]] (contact via [[User talk:Superraptor|talk page]] or [https://github.com/Superraptor/glottography-map-files/issues repository issues])
+* '''Tasks''': Ingests peer-reviewed geographical language distribution datasets from the [https://zenodo.org/communities/glottography Zenodo Glottography community] into the Commons <code>Data:</code> namespace as standardized <code>.map</code> files (JsonConfig) with full attribution, provenance (DOIs, Glottolog identifiers, ISO 639-3 codes, cartographers, CC-BY-4.0 licenses), categorizes maps into [[Category:Linguistic maps by language mapped]], and catalogs discussion pages in [[Category:Map data of languages]].
+* '''Operation''': Manually assisted and supervised batch execution with SQLite state tracking and automated JSON schema validation.
+* '''When''': Intermittent (executed during off-peak hours or in scheduled supervised batches).
+* '''Maximum edit rate''': ~12 to 30 edits per minute (delay of 2.0 to 5.0 seconds between edits; strictly enforces <code>maxlag=5</code> and exponential backoff).
+* '''Language''': Python 3.11 ([https://github.com/Superraptor/glottography-map-files glottography-map-files]).
+
+== Technical Compliance & Safety ==
+* '''Emergency Shutoff''': Halts immediately if blocked, if talk page messages are received, or on consecutive HTTP 429/503 server errors.
+* '''Maxlag Throttling''': Respects Wikimedia server load with <code>maxlag=5</code>.
+* '''Namespaces''': Restricts write operations strictly to <code>Data:</code> (Map.JsonConfig), <code>Data talk:</code>, and <code>Category:</code>.
+* '''Attribution & Provenance''': Every map includes author/cartographer citation, Zenodo record DOI, Glottolog ID, ISO 639-3 code, and CC-BY-4.0 license.
+
+[[Category:Commons bots]]
+```
+
+### Safety & Throttling Controls
+
+- **User-Agent:** All HTTP requests include a customized, descriptive User-Agent header containing tool identification and contact information (`GlottographyCommonsBot/1.0 (https://github.com/Superraptor/glottography-map-files; contact: https://commons.wikimedia.org/wiki/User_talk:Superraptor)`).
 - **Maxlag Protocol:** MediaWiki `maxlag=5` is sent on every edit request. If database replication lag exceeds this threshold, the client pauses and retries with exponential backoff.
 - **Rate Limiting:** A default delay of 2.0 seconds between edit requests is strictly enforced to protect Wikimedia infrastructure.
 - **Bot Password Authentication:** Uses dedicated Bot Passwords rather than main account credentials, with `assert=user` to guarantee edits never fail silently or occur anonymously.

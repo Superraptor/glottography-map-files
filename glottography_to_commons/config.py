@@ -45,7 +45,9 @@ class Config:
     commons_api_url: str = "https://commons.wikimedia.org/w/api.php"
     commons_username: Optional[str] = None
     commons_bot_password: Optional[str] = None
-    user_agent: str = "GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)"
+    user_agent: str = "GlottographyCommonsBot/1.0 (https://github.com/Superraptor/glottography-map-files; contact: https://commons.wikimedia.org/wiki/User_talk:Superraptor)"
+    bot_operator: str = "Superraptor"
+    bot_contact: str = "https://commons.wikimedia.org/wiki/User_talk:Superraptor"
 
     # MediaWiki categorization
     category_name: str = "Map data of languages"
@@ -123,7 +125,9 @@ class Config:
             "commons_api_url": os.getenv("COMMONS_API_URL", "https://commons.wikimedia.org/w/api.php"),
             "commons_username": os.getenv("COMMONS_USERNAME") or os.getenv("COMMONS_USER"),
             "commons_bot_password": os.getenv("COMMONS_BOT_PASSWORD") or os.getenv("COMMONS_PASSWORD"),
-            "user_agent": os.getenv("USER_AGENT", "GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)"),
+            "user_agent": os.getenv("USER_AGENT", "GlottographyCommonsBot/1.0 (https://github.com/Superraptor/glottography-map-files; contact: https://commons.wikimedia.org/wiki/User_talk:Superraptor)"),
+            "bot_operator": os.getenv("BOT_OPERATOR", "Superraptor"),
+            "bot_contact": os.getenv("BOT_CONTACT", "https://commons.wikimedia.org/wiki/User_talk:Superraptor"),
             "category_name": os.getenv("CATEGORY_NAME", "Map data of languages"),
             "talk_category": os.getenv("TALK_CATEGORY", "Map data of languages"),
             "parent_linguistic_category": os.getenv("PARENT_LINGUISTIC_CATEGORY", "Linguistic maps by language mapped"),
