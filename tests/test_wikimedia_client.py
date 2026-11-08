@@ -20,7 +20,7 @@ class TestWikimediaClient(unittest.TestCase):
 
     def test_dry_run_upload_map(self):
         title = "Data:Glottography - English (stan1295) - test.map"
-        content = '{"version": 1, "license": "CC-BY-4.0"}'
+        content = '{"license": "CC-BY-4.0"}'
         res = self.client.upload_map(
             page_title=title,
             content_json=content,

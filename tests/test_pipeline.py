@@ -71,7 +71,7 @@ class TestPipelineIntegration(unittest.TestCase):
         for mf in map_files:
             with open(mf, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            self.assertEqual(data["version"], 1)
+            self.assertNotIn("version", data)
             self.assertEqual(data["license"], "CC-BY-4.0")
             self.assertIn("sources", data)
             self.assertIn("10.5281/zenodo.15287258", data["sources"])

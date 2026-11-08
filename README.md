@@ -100,7 +100,6 @@ Each uploaded language map page (e.g. `Data:Glottography - English (stan1295) - 
 
 ```json
 {
-  "version": 1,
   "license": "CC-BY-4.0",
   "description": {
     "en": "Speaker area map of English (stan1295) derived from Atlas of the World's Languages (2007) (Glottography project)."

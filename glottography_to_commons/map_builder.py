@@ -128,7 +128,6 @@ class MapBuilder:
 
         # Standard Commons Map Data Schema
         map_payload = {
-            "version": 1,
             "license": license_str,
             "description": description_obj,
             "sources": sources_wikitext,

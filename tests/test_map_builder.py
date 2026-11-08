@@ -62,7 +62,7 @@ class TestMapBuilder(unittest.TestCase):
         payload, title = self.builder.build_map_data(self.bundle, self.record)
 
         # Check required schema keys
-        self.assertEqual(payload["version"], 1)
+        self.assertNotIn("version", payload)
         self.assertEqual(payload["license"], "CC-BY-4.0")
         self.assertIn("en", payload["description"])
         self.assertIn("English", payload["description"]["en"])
@@ -91,7 +91,7 @@ class TestMapBuilder(unittest.TestCase):
 
         with open(gen_map.file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        self.assertEqual(data["version"], 1)
+        self.assertNotIn("version", data)
         self.assertEqual(data["license"], "CC-BY-4.0")
 
 
