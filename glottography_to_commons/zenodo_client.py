@@ -156,15 +156,17 @@ class ZenodoClient:
     def list_community_records(self) -> List[ZenodoRecord]:
         """
         Query Zenodo API for all records in the Glottography community.
-        Tries the community records endpoint first, falling back to query search.
+        Note: Zenodo limits anonymous requests to size=25 per page (size=100 requires auth token).
         """
         records: List[ZenodoRecord] = []
         seen_ids = set()
 
+        page_size = 100 if self.config.zenodo_token else 25
+
         endpoints_to_try = [
-            f"{self.config.zenodo_api_base}/communities/{self.config.zenodo_community}/records?size=100",
-            f"{self.config.zenodo_api_base}/records?q=communities.slug:{self.config.zenodo_community}&size=100",
-            f"{self.config.zenodo_api_base}/records?q=communities:{self.config.zenodo_community}&size=100",
+            f"{self.config.zenodo_api_base}/communities/{self.config.zenodo_community}/records?size={page_size}",
+            f"{self.config.zenodo_api_base}/records?q=communities.slug:{self.config.zenodo_community}&size={page_size}",
+            f"{self.config.zenodo_api_base}/records?q=communities:{self.config.zenodo_community}&size={page_size}",
         ]
 
         logger.info("Harvesting Zenodo records for community: %s", self.config.zenodo_community)

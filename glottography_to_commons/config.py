@@ -67,6 +67,7 @@ class Config:
     downloads_dir: Path = field(init=False)
     extracted_dir: Path = field(init=False)
     maps_output_dir: Path = field(init=False)
+    export_dir: Path = field(init=False)
     state_db_path: Path = field(init=False)
 
     def __post_init__(self):
@@ -75,12 +76,14 @@ class Config:
         self.downloads_dir = self.base_data_dir / "downloads"
         self.extracted_dir = self.base_data_dir / "extracted"
         self.maps_output_dir = self.base_data_dir / "generated_maps"
+        self.export_dir = self.base_data_dir / "export"
         self.state_db_path = self.base_data_dir / "pipeline_state.db"
 
         # Ensure directories exist
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
         self.extracted_dir.mkdir(parents=True, exist_ok=True)
         self.maps_output_dir.mkdir(parents=True, exist_ok=True)
+        self.export_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def from_env(cls, env_path: Optional[Path] = None, **overrides) -> "Config":
@@ -133,3 +136,4 @@ class Config:
         # Apply any explicit argument overrides
         config_data.update(overrides)
         return cls(**config_data)
+

@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from glottography_to_commons.config import Config
+from glottography_to_commons.exporter import ManualUploadExporter
 from glottography_to_commons.pipeline import Pipeline
 from glottography_to_commons.state_tracker import StateTracker
 
@@ -48,6 +49,23 @@ def cmd_run(args, config: Config) -> None:
     """Execute complete end-to-end pipeline."""
     pipeline = Pipeline(config)
     pipeline.run_all(limit=args.limit)
+
+
+def cmd_export(args, config: Config) -> None:
+    """Generate manual upload package, provenance descriptions, and HTML portal."""
+    exporter = ManualUploadExporter(config)
+    items = exporter.export()
+    print("\n" + "=" * 65)
+    print(" Manual Upload Package Successfully Prepared! ")
+    print("=" * 65)
+    print(f" Output Directory : {config.export_dir}")
+    print(f" Total Maps Ready : {len(items)}")
+    print(f" HTML Portal      : {config.export_dir / 'index.html'}")
+    print(f" Markdown Manifest: {config.export_dir / 'manifest.md'}")
+    print(f" CSV Spreadsheet  : {config.export_dir / 'manifest.csv'}")
+    print("=" * 65 + "\n")
+    print("Open 'index.html' in your browser to browse maps, copy JSON in 1 click,")
+    print("and open direct Wikimedia Commons edit pages with pre-filled titles!\n")
 
 
 def cmd_status(args, config: Config) -> None:
@@ -98,6 +116,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Download Glottography datasets and upload as .map files to Wikimedia Commons."
     )
+    # Common arguments template
+    common_args = argparse.ArgumentParser(add_help=False)
+    common_args.add_argument("-v", "--verbose", action="store_true", help="Enable verbose debug logging")
+    common_args.add_argument("--dry-run", action="store_true", help="Simulate uploads without modifying Wikimedia Commons")
+    common_args.add_argument("--delay", type=float, default=None, help="Delay in seconds between upload requests (default 2.0s)")
+    common_args.add_argument("--limit", type=int, default=None, help="Limit number of items to process")
+    common_args.add_argument("--env-file", type=str, default=".env", help="Path to .env configuration file")
+
+    # Top-level arguments
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Simulate uploads without modifying Wikimedia Commons")
     parser.add_argument("--delay", type=float, default=None, help="Delay in seconds between upload requests (default 2.0s)")
@@ -107,27 +134,31 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", help="Pipeline subcommands")
 
     # Subcommand: download
-    p_dl = subparsers.add_parser("download", help="Download datasets from Zenodo Glottography community")
+    p_dl = subparsers.add_parser("download", parents=[common_args], help="Download datasets from Zenodo Glottography community")
     p_dl.set_defaults(func=cmd_download)
 
     # Subcommand: process
-    p_proc = subparsers.add_parser("process", help="Extract and build .map files per language")
+    p_proc = subparsers.add_parser("process", parents=[common_args], help="Extract and build .map files per language")
     p_proc.set_defaults(func=cmd_process)
 
     # Subcommand: upload
-    p_up = subparsers.add_parser("upload", help="Upload generated .map files to Wikimedia Commons")
+    p_up = subparsers.add_parser("upload", parents=[common_args], help="Upload generated .map files to Wikimedia Commons")
     p_up.set_defaults(func=cmd_upload)
 
+    # Subcommand: export (manual upload package)
+    p_exp = subparsers.add_parser("export", parents=[common_args], help="Generate manual upload package, descriptions, and HTML portal")
+    p_exp.set_defaults(func=cmd_export)
+
     # Subcommand: run
-    p_run = subparsers.add_parser("run", help="Run end-to-end: download -> process -> upload")
+    p_run = subparsers.add_parser("run", parents=[common_args], help="Run end-to-end: download -> process -> upload")
     p_run.set_defaults(func=cmd_run)
 
     # Subcommand: status
-    p_stat = subparsers.add_parser("status", help="Show pipeline database status and statistics")
+    p_stat = subparsers.add_parser("status", parents=[common_args], help="Show pipeline database status and statistics")
     p_stat.set_defaults(func=cmd_status)
 
     # Subcommand: preview
-    p_prev = subparsers.add_parser("preview", help="Preview a generated .map file")
+    p_prev = subparsers.add_parser("preview", parents=[common_args], help="Preview a generated .map file")
     p_prev.add_argument("query", type=str, help="Language name, glottocode, or dataset name to preview")
     p_prev.set_defaults(func=cmd_preview)
 
@@ -161,3 +192,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

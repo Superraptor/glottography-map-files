@@ -328,3 +328,4 @@ class DatasetParser:
                 lang_name = gfile.stem.replace("_", " ").title()
 
         return glottocode, lang_name, iso, props
+

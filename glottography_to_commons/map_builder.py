@@ -199,3 +199,4 @@ class MapBuilder:
             record_id=record.id,
             dataset_slug=record.slug
         )
+

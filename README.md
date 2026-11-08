@@ -16,6 +16,7 @@ Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glo
 - [Prerequisites & Installation](#prerequisites--installation)
 - [Configuration](#configuration)
 - [Usage & CLI Reference](#usage--cli-reference)
+- [Manual Upload Mode & Portal](#manual-upload-mode--portal)
 - [State Tracking & Resumability](#state-tracking--resumability)
 - [Testing](#testing)
 - [License](#license)
@@ -270,7 +271,14 @@ Ensures `Category:Map data by language` exists, checks existing pages, and uploa
 ./run.ps1 upload --delay 2.0
 ```
 
-### 5. Run End-to-End Pipeline
+### 5. Step 4: Export for Manual Upload & Review
+Generates a complete manual upload package with standalone provenance sheets, CSV/Markdown manifests, and an interactive HTML portal:
+
+```bash
+./run.ps1 export
+```
+
+### 6. Run End-to-End Pipeline
 Executes download, processing, and upload sequentially:
 
 ```bash
@@ -281,13 +289,50 @@ Executes download, processing, and upload sequentially:
 ./run.ps1 run
 ```
 
-### 6. Preview Generated Maps
+### 7. Preview Generated Maps
 Inspect the full JSON payload of any generated map:
 
 ```bash
 ./run.ps1 preview stan1295
 ./run.ps1 preview English
 ```
+
+---
+
+## Manual Upload Mode & Portal
+
+If you prefer to review everything offline or upload maps manually through the Wikimedia Commons web interface without configuring bot credentials, the `export` command builds a dedicated package in `data/export/`:
+
+```
+data/export/
+├── index.html                   # Interactive browser dashboard (1-click copy & direct links)
+├── manifest.md                  # Markdown summary table
+├── manifest.csv                 # CSV spreadsheet with all URLs and metadata
+├── maps/                        # Valid .map JSON files ready for Commons
+│   ├── Glottography_-_English_(stan1295).map
+│   └── ...
+└── descriptions/                # Human-readable provenance & upload sheets
+    ├── Glottography_-_English_(stan1295)_provenance.txt
+    └── ...
+```
+
+### Interactive HTML Portal (`data/export/index.html`)
+Open `data/export/index.html` in any web browser to:
+- **Search & Filter:** Instantly filter languages by name, Glottocode, dataset, or DOI.
+- **1-Click Direct Edit Links:** Click **"Open on Commons"** to open Wikimedia Commons with the target page title (`Data:Glottography - <Language> (<Glottocode>).map`) pre-filled in the editor.
+- **1-Click Copy:** Click **"Copy JSON"** to copy the valid `.map` payload directly to your clipboard, ready to paste into Commons.
+- **Copy Wikitext Sources:** Copies the formatted provenance wikitext for citation.
+- **Category Helper:** One-click copy for the wikitext needed to create `Category:Map data by language` under `Category:Map data by object`.
+
+### Standalone Provenance Sheets (`descriptions/*_provenance.txt`)
+Each language map receives its own text file containing:
+- Direct 1-click URL to edit/create on Commons
+- Target title, namespace (`Data:`), and content model (`JsonConfig`)
+- Target category (`Category:Map data by language`)
+- Original license terms and link (e.g. CC-BY-4.0)
+- Zenodo DOI and resolver URL (`https://doi.org/...`)
+- Creators, publication date, Glottolog URL, SIL ISO 639-3 URL
+- Complete wikitext provenance block and step-by-step upload instructions.
 
 ---
 
@@ -315,3 +360,4 @@ python -m unittest discover tests -v
 ## License
 
 This project is licensed under the [MIT License](LICENSE). The underlying Glottography geolinguistic datasets are released under their respective open licenses (predominantly **CC-BY-4.0** and **CC0-1.0**) as curated by the Glottography Consortium.
+

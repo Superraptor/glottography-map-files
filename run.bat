@@ -20,3 +20,4 @@ if exist "C:\Program Files\Inkscape\bin\python.exe" (
 
 echo Python 3 was not found. Please install Python 3.
 exit /b 1
+

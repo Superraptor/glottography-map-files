@@ -20,3 +20,4 @@ classifiers = [
 
 [project.scripts]
 glottography-to-commons = "main:main"
+

@@ -55,7 +55,7 @@ DISALLOWED_TITLE_CHARS = re.compile(r'[#<>\[\]|{}\\\/]')
 
 
 def sanitize_title(title: str, namespace: str = "Data:") -> str:
-    """
+    r"""
     Sanitizes a page title to be compliant with MediaWiki title rules.
     Removes disallowed characters (# < > [ ] | { } \ /), strips leading/trailing spaces,
     and replaces underscores or colons within the title body.
@@ -253,3 +253,4 @@ def safe_extract_zip(zip_path: Union[str, Path], extract_to: Union[str, Path]) -
                 extracted_files.append(target_path)
 
     return extracted_files
+

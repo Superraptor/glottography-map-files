@@ -215,3 +215,4 @@ class Pipeline:
         stats = self.tracker.get_statistics()
         logger.info("Pipeline run finished. Current Statistics:\n%s", json.dumps(stats, indent=2))
         return stats
+
