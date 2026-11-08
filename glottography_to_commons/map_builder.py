@@ -159,7 +159,7 @@ class MapBuilder:
         categories = [
             {
                 "name": lang_cat,
-                "sort": ""
+                "sort": bundle.clean_name
             }
         ]
 

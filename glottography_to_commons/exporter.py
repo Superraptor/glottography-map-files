@@ -158,10 +158,10 @@ class ManualUploadExporter:
             lang_cat = MapBuilder.get_language_map_category(lang_clean)
             talk_title = page_title.replace("Data:", "Data talk:")
             talk_edit_url = f"https://commons.wikimedia.org/w/index.php?title={urllib.parse.quote(talk_title.replace(' ', '_'))}&action=edit"
-            sort_char = lang_clean[0].upper() if lang_clean else ""
-            talk_wikitext = f"[[Category:{self.config.talk_category}|{sort_char}]]"
+            sort_key = lang_clean
+            talk_wikitext = f"[[Category:{self.config.talk_category}|{sort_key}]]"
             lang_cat_edit_url = f"https://commons.wikimedia.org/w/index.php?title=Category:{urllib.parse.quote(lang_cat.replace(' ', '_'))}&action=edit"
-            lang_cat_wikitext = f"[[Category:{self.config.parent_linguistic_category}]]"
+            lang_cat_wikitext = f"[[Category:{self.config.parent_linguistic_category}|{sort_key}]]"
 
             # Copy/Save .map file into export directory
             map_filename = f"{short_base}.map"
