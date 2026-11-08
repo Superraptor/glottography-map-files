@@ -48,9 +48,11 @@ class Config:
     user_agent: str = "GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)"
 
     # MediaWiki categorization
-    category_name: str = "Map data by language"
+    category_name: str = "Map data of languages"
+    talk_category: str = "Map data of languages"
+    parent_linguistic_category: str = "Linguistic maps by language"
     parent_category: str = "Map data by object"
-    parent_sortkey: str = "Language"
+    parent_sortkey: str = "Languages"
 
     # Rate limiting & Wikimedia etiquette
     request_delay: float = 2.0  # seconds between uploads
@@ -122,9 +124,11 @@ class Config:
             "commons_username": os.getenv("COMMONS_USERNAME") or os.getenv("COMMONS_USER"),
             "commons_bot_password": os.getenv("COMMONS_BOT_PASSWORD") or os.getenv("COMMONS_PASSWORD"),
             "user_agent": os.getenv("USER_AGENT", "GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)"),
-            "category_name": os.getenv("CATEGORY_NAME", "Map data by language"),
+            "category_name": os.getenv("CATEGORY_NAME", "Map data of languages"),
+            "talk_category": os.getenv("TALK_CATEGORY", "Map data of languages"),
+            "parent_linguistic_category": os.getenv("PARENT_LINGUISTIC_CATEGORY", "Linguistic maps by language"),
             "parent_category": os.getenv("PARENT_CATEGORY", "Map data by object"),
-            "parent_sortkey": os.getenv("PARENT_SORTKEY", "Language"),
+            "parent_sortkey": os.getenv("PARENT_SORTKEY", "Languages"),
             "request_delay": get_float("REQUEST_DELAY", 2.0),
             "maxlag": get_int("MAXLAG", 5),
             "max_retries": get_int("MAX_RETRIES", 5),

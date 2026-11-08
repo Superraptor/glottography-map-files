@@ -1,9 +1,9 @@
 # Glottography to Wikimedia Commons Map Data Pipeline
 
-Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glottography Community](https://zenodo.org/communities/glottography/)**, process and split the speaker-area geometries **per language**, and upload them as structured `.map` files (in the `Data:` namespace) with complete provenance and licensing to **[Wikimedia Commons](https://commons.wikimedia.org/)** under a dedicated subcategory:
+Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glottography Community](https://zenodo.org/communities/glottography/)**, process and split the speaker-area geometries **per language**, and upload them as structured `.map` files (in the `Data:` namespace) with complete provenance and licensing to **[Wikimedia Commons](https://commons.wikimedia.org/)** under dedicated categories:
 
-> **[Category:Map data by language](https://commons.wikimedia.org/wiki/Category:Map_data_by_language)**  
-> *(Subcategory of [Category:Map data by object](https://commons.wikimedia.org/wiki/Category:Map_data_by_object))*
+> **[Category:Map data of languages](https://commons.wikimedia.org/wiki/Category:Map_data_of_languages)**  
+> *(Subcategory of [Category:Map data by object](https://commons.wikimedia.org/wiki/Category:Map_data_by_object))* and each language's own category (`Category:<Language Name>`).
 
 ---
 
@@ -40,7 +40,7 @@ Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glo
                │
                ▼  4. Upload with Rate Limiting (wikimedia_client.py)
  Wikimedia Commons:
-   ├── Category:Map data by language (under Category:Map data by object)
+   ├── Category:Map data of languages (under Category:Map data by object)
    └── Data:Glottography - <Language> (<Glottocode>) - <Dataset>.map
 ```
 
@@ -68,14 +68,14 @@ Automated pipeline to download all geolinguistic datasets from the **[Zenodo Glo
      ```json
      "mediawikiCategories": [
        {
-         "name": "Map data by language",
+         "name": "Map data of languages",
          "sort": "<Language Name>"
        }
      ]
      ```
 
 4. **Wikimedia Commons Client (`wikimedia_client.py`)**:
-   - Ensures the subcategory `Category:Map data by language` exists under `Category:Map data by object`. If missing, it automatically creates it with:
+   - Ensures the subcategory `Category:Map data of languages` exists under `Category:Map data by object`. If missing, it automatically creates it with:
      ```wikitext
      {{CategoryMapData}}
      Map data files (.map) in the Data: namespace representing geographical speaker areas and distribution boundaries for the world's languages.
@@ -107,7 +107,7 @@ Each uploaded language map page (e.g. `Data:Glottography - English (stan1295) - 
   "sources": "Data derived from the [https://zenodo.org/communities/glottography Glottography project] on Zenodo.\n\n* '''Dataset''': ''Atlas of the World's Languages (2007)''\n* '''Zenodo Record / DOI''': [https://doi.org/10.5281/zenodo.15287258 10.5281/zenodo.15287258]\n* '''Creators / Cartographers''': Asher, R. E.; Moseley, Christopher J.\n* '''Publication Date''': 2021-04-15\n* '''Language''': English\n* '''Glottocode''': [https://glottolog.org/resource/languoid/id/stan1295 stan1295]\n* '''ISO 639-3''': [https://iso639-3.sil.org/code/eng eng]\n* '''License''': CC-BY-4.0\n* '''Glottography Project Community''': [https://zenodo.org/communities/glottography https://zenodo.org/communities/glottography]",
   "mediawikiCategories": [
     {
-      "name": "Map data by language",
+      "name": "Map data of languages",
       "sort": "English"
     }
   ],
@@ -219,7 +219,7 @@ COMMONS_API_URL=https://commons.wikimedia.org/w/api.php
 USER_AGENT=GlottographyCommonsBot/1.0 (https://github.com/LanguageMaps/GlottographyToCommons; contact: bot@glottography.org)
 
 # MediaWiki Categories
-CATEGORY_NAME=Map data by language
+CATEGORY_NAME=Map data of languages
 PARENT_CATEGORY=Map data by object
 PARENT_SORTKEY=Language
 
@@ -260,7 +260,7 @@ Parses extracted datasets, aggregates features per language, rounds coordinates,
 ```
 
 ### 4. Step 3: Upload Maps to Wikimedia Commons
-Ensures `Category:Map data by language` exists, checks existing pages, and uploads pending maps with rate limiting:
+Ensures `Category:Map data of languages` exists, checks existing pages, and uploads pending maps with rate limiting:
 
 ```bash
 # Test upload in dry-run mode (does not modify Commons):
@@ -321,13 +321,13 @@ Open `data/export/index.html` in any web browser to:
 - **1-Click Direct Edit Links:** Click **"Open on Commons"** to open Wikimedia Commons with the target page title (`Data:Glottography - <Language> (<Glottocode>).map`) pre-filled in the editor.
 - **1-Click Copy:** Click **"Copy JSON"** to copy the valid `.map` payload directly to your clipboard, ready to paste into Commons.
 - **Copy Wikitext Sources:** Copies the formatted provenance wikitext for citation.
-- **Category Helper:** One-click copy for the wikitext needed to create `Category:Map data by language` under `Category:Map data by object`.
+- **Category Helper:** One-click copy for the wikitext needed to create `Category:Map data of languages` under `Category:Map data by object`.
 
 ### Standalone Provenance Sheets (`descriptions/*_provenance.txt`)
 Each language map receives its own text file containing:
 - Direct 1-click URL to edit/create on Commons
 - Target title, namespace (`Data:`), and content model (`JsonConfig`)
-- Target category (`Category:Map data by language`)
+- Target category (`Category:Map data of languages`)
 - Original license terms and link (e.g. CC-BY-4.0)
 - Zenodo DOI and resolver URL (`https://doi.org/...`)
 - Creators, publication date, Glottolog URL, SIL ISO 639-3 URL

@@ -62,13 +62,22 @@ class DatasetParser:
         # 2. Discover features.csv (often in etc/ or raw/)
         features_meta = self._discover_features_metadata(dataset_dir)
 
-        # 3. Discover and process all GeoJSON files
-        geojson_files = list(dataset_dir.rglob("*.geojson")) + list(dataset_dir.rglob("*.json"))
+        # 3. Discover and process GeoJSON files
+        # Glottography datasets organize official language-level speaker area maps into `languages.geojson`.
+        # Auxiliary files (dialects.geojson, families.geojson, features.geojson, raw/dataset.geojson)
+        # contain dialect boundaries, broad language-family regions, or raw unmerged feature segments.
+        lang_geojsons = list(dataset_dir.rglob("languages.geojson"))
+        if lang_geojsons:
+            geojson_files = lang_geojsons
+        else:
+            # Fallback for non-CLDF datasets: find any geojson but exclude families, dialects, and metadata
+            geojson_files = [
+                f for f in dataset_dir.rglob("*.geojson")
+                if not any(f.name.lower().startswith(x) for x in ("family", "families", "dialect", "dialects"))
+                and not f.name.endswith(("-metadata.json", "metadata.json", "schema.json"))
+            ]
 
         for gfile in geojson_files:
-            # Skip metadata and schema json files
-            if gfile.name.endswith(("-metadata.json", "metadata.json", "schema.json")):
-                continue
 
             try:
                 with open(gfile, "r", encoding="utf-8") as f:
@@ -250,28 +259,35 @@ class DatasetParser:
     ) -> Tuple[str, str, Optional[str], Dict[str, Any]]:
         """
         Inspect feature properties, ID, and context to determine Glottocode and Language Name.
+        Authoritatively looks up canonical metadata in languages.csv (CLDF LanguageTable).
         """
         props = feat.get("properties") or {}
         feat_id = str(feat.get("id") or props.get("id") or "").strip()
 
-        # 1. Check feature properties directly
-        glottocode = (
-            props.get("glottocode")
-            or props.get("cldf:glottocode")
-            or props.get("glottolog_id")
-            or props.get("Glottocode")
-            or ""
-        ).strip()
-
-        lang_name = (
-            props.get("name")
+        # In CLDF languages.geojson, language name is typically in 'title' or 'name',
+        # and reference identifier / Glottocode is in 'cldf:languageReference'.
+        title_prop = (
+            props.get("title")
+            or props.get("name")
             or props.get("cldf:name")
             or props.get("language")
             or props.get("Language")
-            or props.get("Language_name")
             or ""
         ).strip()
 
+        lang_ref = (
+            props.get("cldf:languageReference")
+            or props.get("glottocode")
+            or props.get("cldf:glottocode")
+            or props.get("glottolog_id")
+            or props.get("Glottocode")
+            or props.get("Language_ID")
+            or props.get("language_id")
+            or ""
+        ).strip()
+
+        glottocode = ""
+        lang_name = ""
         iso = (
             props.get("iso639p3code")
             or props.get("cldf:iso639p3code")
@@ -280,37 +296,37 @@ class DatasetParser:
             or ""
         ).strip() or None
 
-        # 2. Check feature ID against features_meta
-        if feat_id and (not glottocode or not lang_name):
+        # 1. Authoritative CLDF language lookup via languages.csv
+        if lang_ref:
+            l_info = languages_meta.get(lang_ref) or languages_meta.get(lang_ref.lower())
+            if l_info:
+                glottocode = l_info.get("glottocode", "")
+                lang_name = l_info.get("name", "")
+                iso = iso or l_info.get("iso")
+            elif len(lang_ref) == 8 and lang_ref[:4].isalpha() and lang_ref[4:].isdigit():
+                glottocode = lang_ref
+
+        # Prefer title_prop if lang_name wasn't found in metadata
+        if not lang_name and title_prop:
+            lang_name = title_prop
+
+        # If we have a language name but still no glottocode, search languages_meta by name
+        if not glottocode and lang_name:
+            for l_info in languages_meta.values():
+                if l_info.get("name", "").lower() == lang_name.lower():
+                    glottocode = l_info.get("glottocode", "")
+                    iso = iso or l_info.get("iso")
+                    break
+
+        # 2. Check feature ID against features_meta only as secondary fallback
+        if not glottocode and feat_id:
             f_info = features_meta.get(feat_id) or features_meta.get(feat_id.lower())
             if f_info:
-                if not glottocode:
-                    glottocode = f_info.get("glottocode", "")
+                glottocode = f_info.get("glottocode", "")
                 if not lang_name:
                     lang_name = f_info.get("name", "")
 
-        # 3. Check CLDF language reference or language ID
-        lang_ref = (
-            props.get("cldf:languageReference")
-            or props.get("Language_ID")
-            or props.get("language_id")
-            or props.get("LanguageTable_ID")
-            or ""
-        ).strip()
-
-        candidate_keys = [lang_ref, glottocode, feat_id]
-        for key in candidate_keys:
-            if key and (not glottocode or not lang_name or not iso):
-                l_info = languages_meta.get(key) or languages_meta.get(key.lower())
-                if l_info:
-                    if not glottocode:
-                        glottocode = l_info.get("glottocode", "")
-                    if not lang_name:
-                        lang_name = l_info.get("name", "")
-                    if not iso:
-                        iso = l_info.get("iso")
-
-        # 4. Fallback to file name or feature ID if glottocode looks like a glottocode (4 letters + 4 digits)
+        # 3. Fallback to file name or feature ID if glottocode looks like a glottocode (4 letters + 4 digits)
         if not glottocode:
             for cand in [feat_id, gfile.stem]:
                 cand = cand.strip()

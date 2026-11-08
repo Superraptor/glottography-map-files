@@ -112,6 +112,21 @@ class MapBuilder:
         )
         return {"en": desc_en}
 
+    @staticmethod
+    def get_language_map_category(language_name: str) -> str:
+        """
+        Derives the linguistic map category name under 'Category:Linguistic maps by language'.
+        e.g. 'Northern Ju' -> 'Northern Ju-language linguistic maps'
+             'English' -> 'English-language linguistic maps'
+             'Modern Greek' -> 'Modern Greek-language linguistic maps'
+        """
+        clean = language_name.strip()
+        if not clean or clean.lower().startswith("language unknown"):
+            return "Linguistic maps by language"
+        if clean.lower().endswith("language"):
+            return f"{clean} linguistic maps"
+        return f"{clean}-language linguistic maps"
+
     def build_map_data(
         self,
         bundle: LanguageMapBundle,
@@ -126,17 +141,23 @@ class MapBuilder:
         sources_wikitext = self.build_sources_wikitext(bundle, record)
         page_title = self.build_page_title(bundle, record)
 
+        # Main category for .map file:
+        # Placed under Category:<Language>-language linguistic maps
+        # (subcategorized under Category:Linguistic maps by language)
+        lang_cat = self.get_language_map_category(bundle.clean_name)
+        categories = [
+            {
+                "name": lang_cat,
+                "sort": bundle.clean_name
+            }
+        ]
+
         # Standard Commons Map Data Schema
         map_payload = {
             "license": license_str,
             "description": description_obj,
             "sources": sources_wikitext,
-            "mediawikiCategories": [
-                {
-                    "name": self.config.category_name,
-                    "sort": bundle.clean_name
-                }
-            ],
+            "mediawikiCategories": categories,
             "data": {
                 "type": "FeatureCollection",
                 "features": bundle.features

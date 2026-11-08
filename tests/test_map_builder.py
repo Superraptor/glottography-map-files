@@ -67,10 +67,10 @@ class TestMapBuilder(unittest.TestCase):
         self.assertIn("en", payload["description"])
         self.assertIn("English", payload["description"]["en"])
 
-        # Check mediawikiCategories
+        # Check mediawikiCategories: Category:<Language>-language linguistic maps
         cats = payload.get("mediawikiCategories", [])
         self.assertEqual(len(cats), 1)
-        self.assertEqual(cats[0]["name"], "Map data by language")
+        self.assertEqual(cats[0]["name"], "English-language linguistic maps")
         self.assertEqual(cats[0]["sort"], "English")
 
         # Check sources wikitext provenance

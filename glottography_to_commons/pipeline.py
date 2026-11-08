@@ -194,7 +194,8 @@ class Pipeline:
                 res = self.wikimedia.upload_map(
                     page_title=page_title,
                     content_json=content_json,
-                    summary=summary
+                    summary=summary,
+                    language_name=lang
                 )
                 url = res.get("url", f"https://commons.wikimedia.org/wiki/{page_title}")
                 self.tracker.record_map_uploaded(map_id, url)

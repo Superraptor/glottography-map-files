@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from glottography_to_commons.config import Config
+from glottography_to_commons.map_builder import MapBuilder
 from glottography_to_commons.state_tracker import StateTracker
 from glottography_to_commons.utils import slugify
 
@@ -25,6 +26,12 @@ class ExportItem:
     page_title: str
     commons_edit_url: str
     commons_view_url: str
+    talk_page_title: str
+    talk_edit_url: str
+    talk_wikitext: str
+    lang_category: str
+    lang_cat_edit_url: str
+    lang_cat_wikitext: str
     glottocode: str
     language_name: str
     iso639_3: Optional[str]
@@ -147,6 +154,15 @@ class ManualUploadExporter:
                 import hashlib
                 short_base = f"{short_base}_{hashlib.md5(base_name.encode()).hexdigest()[:6]}"
 
+            lang_clean = lang_name or base_name
+            lang_cat = MapBuilder.get_language_map_category(lang_clean)
+            talk_title = page_title.replace("Data:", "Data talk:")
+            talk_edit_url = f"https://commons.wikimedia.org/w/index.php?title={urllib.parse.quote(talk_title.replace(' ', '_'))}&action=edit"
+            sort_char = lang_clean[0].upper() if lang_clean else ""
+            talk_wikitext = f"[[Category:{self.config.talk_category}|{sort_char}]]"
+            lang_cat_edit_url = f"https://commons.wikimedia.org/w/index.php?title=Category:{urllib.parse.quote(lang_cat.replace(' ', '_'))}&action=edit"
+            lang_cat_wikitext = f"[[Category:{self.config.parent_linguistic_category}]]"
+
             # Copy/Save .map file into export directory
             map_filename = f"{short_base}.map"
             target_map_path = self.maps_dir / map_filename
@@ -161,8 +177,14 @@ class ManualUploadExporter:
                 page_title=page_title,
                 edit_url=edit_url,
                 view_url=view_url,
-                lang_name=lang_name,
-                glottocode=glottocode,
+                talk_page_title=talk_title,
+                talk_edit_url=talk_edit_url,
+                talk_wikitext=talk_wikitext,
+                lang_category=lang_cat,
+                lang_cat_edit_url=lang_cat_edit_url,
+                lang_cat_wikitext=lang_cat_wikitext,
+                lang_name=lang_clean,
+                glottocode=glottocode or "unknown",
                 license=lic,
                 dataset_title=dataset_title,
                 doi=doi,
@@ -179,8 +201,14 @@ class ManualUploadExporter:
                 page_title=page_title,
                 commons_edit_url=edit_url,
                 commons_view_url=view_url,
+                talk_page_title=talk_title,
+                talk_edit_url=talk_edit_url,
+                talk_wikitext=talk_wikitext,
+                lang_category=lang_cat,
+                lang_cat_edit_url=lang_cat_edit_url,
+                lang_cat_wikitext=lang_cat_wikitext,
                 glottocode=glottocode or "unknown",
-                language_name=lang_name or base_name,
+                language_name=lang_clean,
                 iso639_3=None,
                 license=lic,
                 doi=doi or "N/A",
@@ -211,6 +239,12 @@ class ManualUploadExporter:
         page_title: str,
         edit_url: str,
         view_url: str,
+        talk_page_title: str,
+        talk_edit_url: str,
+        talk_wikitext: str,
+        lang_category: str,
+        lang_cat_edit_url: str,
+        lang_cat_wikitext: str,
         lang_name: str,
         glottocode: str,
         license: str,
@@ -230,8 +264,11 @@ class ManualUploadExporter:
             f" Target Commons Page Title : {page_title}",
             f" 1-Click Direct Edit URL   : {edit_url}",
             f" View URL                  : {view_url}",
-            f" Target Category           : Category:{self.config.category_name}",
-            f" Parent Category           : Category:{self.config.parent_category}",
+            f" Discussion / Talk Page    : {talk_page_title}",
+            f" Talk Page Edit URL        : {talk_edit_url}",
+            f" Map Data Category         : Category:{lang_category}",
+            f" Parent Linguistic Cat     : Category:{self.config.parent_linguistic_category}",
+            f" Talk Page Category        : Category:{self.config.talk_category}",
             f" Content Model             : JsonConfig (.map)",
             f" License                   : {license}",
             "-" * 70,
@@ -250,21 +287,29 @@ class ManualUploadExporter:
             "-" * 70,
             " HOW TO UPLOAD MANUALLY TO WIKIMEDIA COMMONS:",
             "-" * 70,
-            " 1. Ensure 'Category:Map data by language' exists on Commons.",
-            "    If it does not exist yet, visit:",
-            f"    https://commons.wikimedia.org/w/index.php?title=Category:{urllib.parse.quote(self.config.category_name)}&action=edit",
-            "    and save the following wikitext:",
+            " STEP 1: Upload the .map file into the Data: namespace",
+            f" 1. Click: {edit_url}",
+            " 2. Paste the contents of the corresponding .map file into the editor.",
+            f" 3. Summary: Importing Glottography speaker area map for {lang_name} ({glottocode}) from Zenodo {doi}",
+            " 4. Click 'Save changes'.",
+            f"    (This categorizes the map under Category:{lang_category})",
             "",
-            "    {{CategoryMapData}}",
-            "    Map data files (.map) in the Data: namespace representing geographical speaker areas.",
+            " STEP 2: Categorize the discussion / talk page",
+            f" 1. Click: {talk_edit_url}",
+            f" 2. Paste the following wikitext into the talk page editor:",
             "",
-            f"    [[Category:{self.config.parent_category}|{self.config.parent_sortkey}]]",
+            f"    {talk_wikitext}",
             "",
-            " 2. Click the 1-Click Direct Edit URL above (or navigate to the target title on Commons).",
-            " 3. Paste the contents of the corresponding .map file into the editor.",
-            " 4. In the 'Summary' box, enter:",
-            f"    Importing Glottography speaker area map for {lang_name} ({glottocode}) from Zenodo {doi}",
-            " 5. Click 'Save changes'.",
+            f" 3. Summary: Categorizing map data under Category:{self.config.talk_category}",
+            " 4. Click 'Save changes'.",
+            f"    (This catalogs the map data in Category:{self.config.talk_category})",
+            "",
+            f" STEP 3: If Category:{lang_category} does not exist yet on Commons:",
+            f" Visit: {lang_cat_edit_url}",
+            " and save the following wikitext:",
+            "",
+            f"    {lang_cat_wikitext}",
+            "",
             "=" * 70,
             " COMPLETE SOURCES & PROVENANCE WIKITEXT:",
             "=" * 70,
@@ -280,17 +325,18 @@ class ManualUploadExporter:
             "# Glottography Manual Upload Manifest",
             "",
             f"Total language maps prepared: **{len(items)}**  ",
-            f"Target Category: **`Category:{self.config.category_name}`** (subcategorized under `Category:{self.config.parent_category}`)  ",
+            f"- **Map Data Categories:** `Category:<Language>-language linguistic maps` under **`Category:{self.config.parent_linguistic_category}`**  ",
+            f"- **Map Data Talk Catalog:** **`Category:{self.config.talk_category}`**  ",
             "",
-            "### Instructions for Manual Upload",
-            "1. First, verify **[Category:Map data by language](https://commons.wikimedia.org/wiki/Category:Map_data_by_language)** exists on Commons.",
-            "2. Click the **[Create/Edit on Commons]** link in the table below for any language.",
-            "3. Paste the `.map` JSON payload into the editor and save.",
+            "### 3-Step Instructions for Manual Upload",
+            "1. **Upload Map Data**: Click **[Upload .map]**, paste the `.map` JSON payload into the Commons editor, and save.",
+            f"2. **Categorize Discussion Page**: Click **[Edit Talk Page]**, paste `[[Category:{self.config.talk_category}|<SortKey>]]`, and save.",
+            f"3. **Ensure Category**: If `Category:<Language>-language linguistic maps` does not exist yet, click **[Create Category]** and save `[[Category:{self.config.parent_linguistic_category}]]`.",
             "",
             "---",
             "",
-            "| Language | Glottocode | Target Page Title | Dataset & DOI | License | Actions |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- |",
+            "| Language | Glottocode | Target .map Title | Category | Talk Page | Dataset & DOI | Actions |",
+            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
         ]
 
         for item in sorted(items, key=lambda x: x.language_name):
@@ -299,10 +345,12 @@ class ManualUploadExporter:
                 f"[{item.glottocode}](https://glottolog.org/resource/languoid/id/{item.glottocode})"
                 if item.glottocode != "unknown" else "unknown"
             )
+            cat_link = f"[{item.lang_category}](https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(item.lang_category.replace(' ', '_'))})"
             row = (
                 f"| **{item.language_name}** | {glotto_link} | `{item.page_title}` "
-                f"| {item.dataset_title[:40]} ({doi_link}) | `{item.license}` "
-                f"| [Create/Edit on Commons]({item.commons_edit_url}) &bull; [Map File]({item.map_rel_path}) |"
+                f"| {cat_link} | [Talk]({item.talk_edit_url}) "
+                f"| {item.dataset_title[:35]} ({doi_link}) "
+                f"| [Upload .map]({item.commons_edit_url}) &bull; [Edit Talk]({item.talk_edit_url}) &bull; [Map File]({item.map_rel_path}) |"
             )
             lines.append(row)
 
@@ -320,6 +368,12 @@ class ManualUploadExporter:
                 "Glottocode",
                 "Commons_Page_Title",
                 "Commons_Edit_URL",
+                "Talk_Page_Title",
+                "Talk_Edit_URL",
+                "Talk_Wikitext",
+                "Language_Category",
+                "Language_Category_Edit_URL",
+                "Language_Category_Wikitext",
                 "Zenodo_DOI",
                 "Dataset_Title",
                 "Creators",
@@ -335,6 +389,12 @@ class ManualUploadExporter:
                     item.glottocode,
                     item.page_title,
                     item.commons_edit_url,
+                    item.talk_page_title,
+                    item.talk_edit_url,
+                    item.talk_wikitext,
+                    item.lang_category,
+                    item.lang_cat_edit_url,
+                    item.lang_cat_wikitext,
                     item.doi,
                     item.dataset_title,
                     item.creators,
@@ -357,6 +417,12 @@ class ManualUploadExporter:
                 "page_title": it.page_title,
                 "edit_url": it.commons_edit_url,
                 "view_url": it.commons_view_url,
+                "talk_title": it.talk_page_title,
+                "talk_url": it.talk_edit_url,
+                "talk_wiki": it.talk_wikitext,
+                "lang_cat": it.lang_category,
+                "lang_cat_url": it.lang_cat_edit_url,
+                "lang_cat_wiki": it.lang_cat_wikitext,
                 "lang": it.language_name,
                 "glottocode": it.glottocode,
                 "license": it.license,
@@ -371,9 +437,8 @@ class ManualUploadExporter:
 
         items_json = json.dumps(embedded_items, ensure_ascii=False)
 
-        cat_name = self.config.category_name
-        parent_cat = self.config.parent_category
-        parent_key = self.config.parent_sortkey
+        cat_parent = self.config.parent_linguistic_category
+        cat_talk = self.config.talk_category
 
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -385,6 +450,7 @@ class ManualUploadExporter:
     :root {{
       --primary: #2a4b8d;
       --primary-hover: #1b356d;
+      --secondary: #5a6268;
       --success: #198754;
       --bg: #f8f9fa;
       --card-bg: #ffffff;
@@ -400,7 +466,7 @@ class ManualUploadExporter:
       line-height: 1.5;
       padding: 24px;
     }}
-    .container {{ max-width: 1300px; margin: 0 auto; }}
+    .container {{ max-width: 1400px; margin: 0 auto; }}
     header {{
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -444,24 +510,27 @@ class ManualUploadExporter:
       color: #495057;
     }}
     .badge-license {{ background: #d1e7dd; color: #0f5132; }}
+    .badge-cat {{ background: #cfe2ff; color: #084298; }}
     .btn {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 5px;
-      font-size: 13px;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
       font-weight: 500;
       text-decoration: none;
       cursor: pointer;
       border: 1px solid transparent;
       transition: all 0.15s ease-in-out;
+      white-space: nowrap;
     }}
     .btn-primary {{ background: var(--primary); color: #fff; }}
     .btn-primary:hover {{ background: var(--primary-hover); }}
     .btn-outline {{ background: #fff; border-color: var(--border); color: var(--text); }}
     .btn-outline:hover {{ background: #f1f3f5; }}
-    .btn-success {{ background: var(--success); color: #fff; }}
+    .btn-talk {{ background: #f8f9fa; border-color: #6c757d; color: #495057; }}
+    .btn-talk:hover {{ background: #e2e6ea; }}
     table {{
       width: 100%;
       border-collapse: collapse;
@@ -472,10 +541,10 @@ class ManualUploadExporter:
       box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }}
     th, td {{
-      padding: 12px 14px;
+      padding: 10px 12px;
       text-align: left;
       border-bottom: 1px solid var(--border);
-      font-size: 14px;
+      font-size: 13px;
     }}
     th {{
       background: #f1f3f5;
@@ -483,7 +552,7 @@ class ManualUploadExporter:
       color: #495057;
     }}
     tr:hover {{ background-color: #fbfcfd; }}
-    .btn-group {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+    .btn-group {{ display: flex; gap: 4px; flex-wrap: wrap; }}
     .pagination-bar {{
       display: flex;
       justify-content: center;
@@ -513,18 +582,16 @@ class ManualUploadExporter:
       <p class="subtitle">Browse, inspect, and manually upload speaker-area map data pages into Commons <code>Data:*.map</code>.</p>
       
       <div class="alert-box">
-        <strong>Target Subcategory:</strong> 
-        <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_name)}" target="_blank">Category:{cat_name}</a> 
-        (subcategorized under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(parent_cat)}" target="_blank">Category:{parent_cat}</a>).
-        <br><br>
-        If the category does not exist yet on Commons:
-        <a href="https://commons.wikimedia.org/w/index.php?title=Category:{urllib.parse.quote(cat_name)}&action=edit" target="_blank" class="btn btn-primary" style="margin-left: 8px; font-size: 12px;">Create Category on Commons</a>
-        <button class="btn btn-outline" style="margin-left: 6px; font-size: 12px;" onclick="copyCategoryWikitext()">Copy Category Wikitext</button>
+        <strong>Wikimedia Commons Categorization Architecture:</strong>
+        <ul style="margin-left: 20px; margin-top: 6px;">
+          <li><strong>Map Data Files (.map)</strong> belong in individual language categories under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_parent)}" target="_blank">Category:{cat_parent}</a> (e.g. <code>Category:Northern Ju-language linguistic maps</code>).</li>
+          <li><strong>Discussion Pages (Data talk:)</strong> are cataloged under <a href="https://commons.wikimedia.org/wiki/Category:{urllib.parse.quote(cat_talk)}" target="_blank">Category:{cat_talk}</a>.</li>
+        </ul>
       </div>
     </header>
 
     <div class="toolbar">
-      <input type="text" id="searchInput" class="search-input" placeholder="Search by language name, glottocode, dataset, or DOI..." oninput="filterTable()">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by language name, glottocode, category, dataset, or DOI..." oninput="filterTable()">
       <span class="badge" id="countBadge">Loading...</span>
     </div>
 
@@ -534,8 +601,8 @@ class ManualUploadExporter:
           <th>Language</th>
           <th>Glottocode</th>
           <th>Page Title</th>
+          <th>Linguistic Map Category</th>
           <th>Dataset / DOI</th>
-          <th>License</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -570,11 +637,6 @@ class ManualUploadExporter:
       }});
     }}
 
-    function copyCategoryWikitext() {{
-      const wiki = "{{{{CategoryMapData}}}}\\nMap data files (.map) in the Data: namespace representing geographical speaker areas.\\n\\n[[Category:{parent_cat}|{parent_key}]]";
-      copyToClipboard(wiki, "Category wikitext copied to clipboard!");
-    }}
-
     async function copyMapJson(index) {{
       const it = currentList[index];
       try {{
@@ -588,9 +650,14 @@ class ManualUploadExporter:
       }}
     }}
 
+    function copyTalkWikitext(index) {{
+      const it = currentList[index];
+      copyToClipboard(it.talk_wiki, `Copied talk page category wikitext for ${{it.lang}}!`);
+    }}
+
     function copySourcesWikitext(index) {{
       const it = currentList[index];
-      copyToClipboard(it.sources, `Copied sources wikitext for ${{it.lang}} to clipboard!`);
+      copyToClipboard(it.sources, `Copied sources citation wikitext for ${{it.lang}} to clipboard!`);
     }}
 
     function renderRows(start, count) {{
@@ -606,19 +673,22 @@ class ManualUploadExporter:
           <td>
             ${{it.glottocode !== "unknown" ? `<a href="https://glottolog.org/resource/languoid/id/${{it.glottocode}}" target="_blank">${{it.glottocode}}</a>` : '<span style="color:#888;">unknown</span>'}}
           </td>
-          <td><code style="font-size:12px;">${{it.page_title}}</code></td>
+          <td><code style="font-size:11px;">${{it.page_title}}</code></td>
+          <td>
+            <a href="https://commons.wikimedia.org/wiki/Category:${{encodeURIComponent(it.lang_cat.replace(/ /g, '_'))}}" target="_blank" class="badge badge-cat">${{it.lang_cat}}</a>
+          </td>
           <td>
             ${{it.dataset}}<br>
             <small>${{it.doi !== "N/A" ? `<a href="https://doi.org/${{it.doi}}" target="_blank">${{it.doi}}</a>` : ''}}</small>
           </td>
-          <td><span class="badge badge-license">${{it.license}}</span></td>
           <td>
             <div class="btn-group">
-              <a href="${{it.edit_url}}" target="_blank" class="btn btn-primary" title="Open editor on Wikimedia Commons">Open on Commons</a>
-              <button class="btn btn-outline" onclick="copyMapJson(${{idx}})" title="Copy valid .map JSON to clipboard">Copy JSON</button>
-              <a href="${{it.map_rel}}" target="_blank" class="btn btn-outline" title="Open .map file">.map</a>
+              <a href="${{it.edit_url}}" target="_blank" class="btn btn-primary" title="Open .map editor on Commons">Upload .map</a>
+              <button class="btn btn-outline" onclick="copyMapJson(${{idx}})" title="Copy .map JSON to clipboard">Copy JSON</button>
+              <a href="${{it.talk_url}}" target="_blank" class="btn btn-talk" title="Open talk page editor to add Category:Map data of languages">Edit Talk</a>
+              <button class="btn btn-outline" onclick="copyTalkWikitext(${{idx}})" title="Copy talk page wikitext">Copy Talk</button>
+              <a href="${{it.map_rel}}" target="_blank" class="btn btn-outline" title="View / download raw .map file">.map</a>
               <a href="${{it.desc_rel}}" target="_blank" class="btn btn-outline" title="Open provenance sheet">Provenance</a>
-              <button class="btn btn-outline" onclick="copySourcesWikitext(${{idx}})" title="Copy sources citation wikitext">Copy Sources</button>
             </div>
           </td>
         `;
@@ -667,6 +737,7 @@ class ManualUploadExporter:
         it.lang.toLowerCase().includes(q) ||
         it.glottocode.toLowerCase().includes(q) ||
         it.page_title.toLowerCase().includes(q) ||
+        it.lang_cat.toLowerCase().includes(q) ||
         it.dataset.toLowerCase().includes(q) ||
         it.doi.toLowerCase().includes(q)
       );

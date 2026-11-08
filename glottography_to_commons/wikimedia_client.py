@@ -223,7 +223,7 @@ class WikimediaClient:
 
     def ensure_category(self) -> bool:
         """
-        Checks whether 'Category:Map data by language' exists on Wikimedia Commons.
+        Checks whether the target category ('Category:Map data of languages') exists on Wikimedia Commons.
         If not, creates it as a subcategory of 'Category:Map data by object'.
         """
         cat_title = f"Category:{self.config.category_name}"
@@ -277,18 +277,90 @@ class WikimediaClient:
             logger.error("Failed to create category %s: %s", cat_title, res)
             return False
 
+    def ensure_talk_page(self, page_title: str, language_name: str) -> bool:
+        """
+        Categorizes the Data talk: page under 'Category:Map data of languages'.
+        """
+        talk_title = page_title.replace("Data:", "Data talk:")
+        sort_char = language_name[0].upper() if language_name else ""
+        wikitext = f"[[Category:{self.config.talk_category}|{sort_char}]]"
+        summary = f"Categorizing map data under Category:{self.config.talk_category}"
+
+        if self.config.dry_run:
+            logger.info("[DRY RUN] Would ensure talk page %s with content: %s", talk_title, wikitext)
+            return True
+
+        exists, current_text = self.page_exists(talk_title)
+        if exists and current_text and f"Category:{self.config.talk_category}" in current_text:
+            return True
+
+        logger.info("Setting talk page category for %s...", talk_title)
+        token = self.get_csrf_token()
+        edit_data = {
+            "action": "edit",
+            "title": talk_title,
+            "text": wikitext,
+            "summary": summary,
+            "token": token,
+            "bot": "1",
+            "assert": "user" if self.is_authenticated else "anon",
+            "maxlag": str(self.config.maxlag),
+        }
+        res = self._api_request("POST", {"action": "edit"}, data=edit_data)
+        return res.get("edit", {}).get("result") == "Success"
+
+    def ensure_language_category(self, language_name: str) -> bool:
+        """
+        Ensures 'Category:<Language>-language linguistic maps' exists under
+        'Category:Linguistic maps by language'.
+        """
+        from glottography_to_commons.map_builder import MapBuilder
+        lang_cat = MapBuilder.get_language_map_category(language_name)
+        cat_title = f"Category:{lang_cat}"
+        wikitext = f"[[Category:{self.config.parent_linguistic_category}]]\n"
+        summary = f"Creating linguistic map subcategory for {language_name}"
+
+        if self.config.dry_run:
+            logger.info("[DRY RUN] Would ensure language category %s with content: %s", cat_title, wikitext.strip())
+            return True
+
+        exists, _ = self.page_exists(cat_title)
+        if exists:
+            return True
+
+        logger.info("Creating language category page %s...", cat_title)
+        token = self.get_csrf_token()
+        edit_data = {
+            "action": "edit",
+            "title": cat_title,
+            "text": wikitext,
+            "summary": summary,
+            "token": token,
+            "bot": "1",
+            "assert": "user" if self.is_authenticated else "anon",
+            "maxlag": str(self.config.maxlag),
+        }
+        res = self._api_request("POST", {"action": "edit"}, data=edit_data)
+        return res.get("edit", {}).get("result") == "Success"
+
     def upload_map(
         self,
         page_title: str,
         content_json: str,
         summary: str,
+        language_name: str = "",
         recreate: bool = False
     ) -> Dict[str, Any]:
         """
         Edits / creates a .map page in the Data: namespace on Wikimedia Commons.
+        Also categorizes the talk page under 'Category:Map data of languages'
+        and ensures the language category exists.
         """
         if self.config.dry_run:
             logger.info("[DRY RUN] Would upload map to %s (summary: %s)", page_title, summary)
+            if language_name:
+                self.ensure_language_category(language_name)
+                self.ensure_talk_page(page_title, language_name)
             return {
                 "result": "Success",
                 "page_title": page_title,
@@ -329,6 +401,13 @@ class WikimediaClient:
 
         if edit_info.get("result") == "Success":
             logger.info("Successfully uploaded %s to Commons (rev %s)", page_title, edit_info.get("newrevid"))
+            if language_name:
+                try:
+                    self.ensure_language_category(language_name)
+                    self.ensure_talk_page(page_title, language_name)
+                except Exception as cat_err:
+                    logger.warning("Could not set categories/talk page for %s: %s", page_title, cat_err)
+
             return {
                 "result": "Success",
                 "page_title": page_title,

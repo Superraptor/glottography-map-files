@@ -76,7 +76,10 @@ class TestPipelineIntegration(unittest.TestCase):
             self.assertIn("sources", data)
             self.assertIn("10.5281/zenodo.15287258", data["sources"])
             self.assertIn("mediawikiCategories", data)
-            self.assertEqual(data["mediawikiCategories"][0]["name"], "Map data by language")
+            self.assertIn(data["mediawikiCategories"][0]["name"], [
+                "English-language linguistic maps",
+                "Southern Quechua-language linguistic maps"
+            ])
             self.assertIn(data["mediawikiCategories"][0]["sort"], ["English", "Southern Quechua"])
 
         # 3. Upload maps (dry run)

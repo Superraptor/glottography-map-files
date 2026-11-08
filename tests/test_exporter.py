@@ -60,6 +60,8 @@ class TestExporter(unittest.TestCase):
         item = items[0]
         self.assertEqual(item.language_name, "English")
         self.assertEqual(item.glottocode, "stan1295")
+        self.assertEqual(item.lang_category, "English-language linguistic maps")
+        self.assertIn("Data_talk", item.talk_edit_url)
         self.assertIn("commons.wikimedia.org", item.commons_edit_url)
 
         # Verify files created on disk
@@ -72,7 +74,7 @@ class TestExporter(unittest.TestCase):
         self.assertEqual(len(desc_files), 1)
         desc_content = desc_files[0].read_text(encoding="utf-8")
         self.assertIn("10.5281/zenodo.15287258", desc_content)
-        self.assertIn("Category:Map data by language", desc_content)
+        self.assertIn("Category:Map data of languages", desc_content)
         self.assertIn("Asher, R. E.", desc_content)
 
 
