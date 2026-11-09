@@ -164,7 +164,15 @@ class Pipeline:
                 raise
 
         pending_maps = self.tracker.get_pending_uploads()
-        logger.info("Found %d pending maps to upload.", len(pending_maps))
+        # Deduplicate pending maps by unique page title
+        seen_titles = set()
+        unique_pending = []
+        for m in pending_maps:
+            if m["page_title"] not in seen_titles:
+                seen_titles.add(m["page_title"])
+                unique_pending.append(m)
+        pending_maps = unique_pending
+        logger.info("Found %d distinct pending maps to upload.", len(pending_maps))
 
         if limit and limit > 0:
             logger.info("Limiting upload to first %d maps as requested.", limit)
@@ -204,6 +212,7 @@ class Pipeline:
             except Exception as e:
                 logger.error("Failed uploading %s: %s", page_title, e)
                 self.tracker.record_map_upload_failed(map_id, str(e))
+                raise
 
         logger.info("Completed Step 3: Successfully processed %d map uploads.", uploaded_count)
         return uploaded_count

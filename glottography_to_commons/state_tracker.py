@@ -182,14 +182,27 @@ class StateTracker:
 
     def record_map_uploaded(self, map_id: str, commons_url: str) -> None:
         with self._connection() as conn:
-            conn.execute("""
-                UPDATE maps
-                SET status='UPLOADED',
-                    uploaded_at=?,
-                    commons_url=?,
-                    error_message=NULL
-                WHERE map_id=?
-            """, (self.now_iso(), commons_url, map_id))
+            cursor = conn.cursor()
+            cursor.execute("SELECT page_title FROM maps WHERE map_id=?", (map_id,))
+            row = cursor.fetchone()
+            if row and row["page_title"]:
+                conn.execute("""
+                    UPDATE maps
+                    SET status='UPLOADED',
+                        uploaded_at=?,
+                        commons_url=?,
+                        error_message=NULL
+                    WHERE page_title=?
+                """, (self.now_iso(), commons_url, row["page_title"]))
+            else:
+                conn.execute("""
+                    UPDATE maps
+                    SET status='UPLOADED',
+                        uploaded_at=?,
+                        commons_url=?,
+                        error_message=NULL
+                    WHERE map_id=?
+                """, (self.now_iso(), commons_url, map_id))
             conn.commit()
 
     def record_map_upload_failed(self, map_id: str, error: str) -> None:

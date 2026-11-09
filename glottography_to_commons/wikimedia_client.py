@@ -168,7 +168,36 @@ class WikimediaClient:
         logger.info("Successfully authenticated to Wikimedia Commons!")
         self.is_authenticated = True
 
-        # 3. Refresh CSRF token after login
+        # 3. Post-login verification: verify user rights, block status, and talk page messages
+        userinfo_res = self._api_request("GET", {
+            "action": "query",
+            "meta": "userinfo",
+            "uiprop": "rights|groups|blockinfo|hasmsg|messages"
+        })
+        uinfo = userinfo_res.get("query", {}).get("userinfo", {})
+        actual_name = uinfo.get("name")
+        logger.info("Confirmed identity on Wikimedia Commons: %s (id: %s)", actual_name, uinfo.get("id"))
+
+        # Verify user matches expected bot account
+        expected_base = self.config.commons_username.split("@")[0].strip()
+        if actual_name and actual_name.lower() != expected_base.lower():
+            logger.warning("Logged in user '%s' differs from expected base '%s'", actual_name, expected_base)
+
+        # Check 1: Is user or IP blocked?
+        if uinfo.get("blockid") or "blocked" in uinfo or uinfo.get("blockinfo"):
+            block_reason = uinfo.get("blockreason", "Unknown block reason")
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Account {actual_name} is BLOCKED on Wikimedia Commons ({block_reason})! Stopping immediately.")
+
+        # Check 2: Emergency shutoff via talk page messages
+        if uinfo.get("messages") or uinfo.get("hasmsg"):
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Bot talk page for {actual_name} has unread messages/alerts! Emergency shutoff triggered. Stopping immediately.")
+
+        # Check 3: Edit permissions
+        rights = uinfo.get("rights", [])
+        if "edit" not in rights:
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Bot account {actual_name} lacks 'edit' rights on Wikimedia Commons! Rights: {rights}")
+
+        # 4. Refresh CSRF token after login
         self.get_csrf_token(force_refresh=True)
         return True
 
@@ -274,8 +303,7 @@ class WikimediaClient:
             logger.info("Successfully created %s on Wikimedia Commons!", cat_title)
             return True
         else:
-            logger.error("Failed to create category %s: %s", cat_title, res)
-            return False
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Failed creating category {cat_title}: {res}")
 
     def ensure_talk_page(self, page_title: str, language_name: str) -> bool:
         """
@@ -307,7 +335,9 @@ class WikimediaClient:
             "maxlag": str(self.config.maxlag),
         }
         res = self._api_request("POST", {"action": "edit"}, data=edit_data)
-        return res.get("edit", {}).get("result") == "Success"
+        if res.get("edit", {}).get("result") != "Success":
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Failed editing talk page {talk_title}: {res}")
+        return True
 
     def ensure_language_category(self, language_name: str) -> bool:
         """
@@ -342,7 +372,9 @@ class WikimediaClient:
             "maxlag": str(self.config.maxlag),
         }
         res = self._api_request("POST", {"action": "edit"}, data=edit_data)
-        return res.get("edit", {}).get("result") == "Success"
+        if res.get("edit", {}).get("result") != "Success":
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Failed creating language category {cat_title}: {res}")
+        return True
 
     def build_bot_userpage_wikitext(self) -> str:
         """
@@ -403,7 +435,110 @@ class WikimediaClient:
             "maxlag": str(self.config.maxlag),
         }
         res = self._api_request("POST", {"action": "edit"}, data=edit_data)
-        return res.get("edit", {}).get("result") == "Success"
+        if res.get("edit", {}).get("result") != "Success":
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Failed creating bot user page {userpage_title}: {res}")
+        return True
+
+    @staticmethod
+    def validate_map_payload(page_title: str, content_json: str) -> None:
+        """
+        Ultra-strict validation of .map file and page title prior to upload.
+        Raises ValueError or RuntimeError immediately if anything looks suspicious.
+        """
+        # 1. Page title checks
+        if not page_title.startswith("Data:"):
+            raise ValueError(f"Security check failed: page title '{page_title}' must start with 'Data:' namespace")
+        if not page_title.endswith(".map"):
+            raise ValueError(f"Security check failed: page title '{page_title}' must end with '.map' extension")
+        if len(page_title) > 240:
+            raise ValueError(f"Page title exceeds safe MediaWiki limit of 240 chars: {len(page_title)} chars")
+        forbidden_chars = set('#<>[]|{}')
+        for ch in page_title.replace("Data:", ""):
+            if ch in forbidden_chars:
+                raise ValueError(f"Page title contains forbidden MediaWiki character '{ch}': {page_title}")
+
+        # 2. Byte size checks
+        raw_bytes = content_json.encode("utf-8")
+        if len(raw_bytes) > 1_900_000:
+            raise ValueError(f"Payload size ({len(raw_bytes)} bytes) exceeds safe Commons threshold of 1.9 MB")
+        if len(raw_bytes) < 100:
+            raise ValueError(f"Payload size ({len(raw_bytes)} bytes) is suspiciously small")
+
+        # 3. JSON parse checks
+        try:
+            data = json.loads(content_json)
+        except Exception as e:
+            raise ValueError(f"Invalid JSON payload: {e}")
+
+        # 4. Forbidden fields check
+        if "version" in data:
+            raise ValueError("Schema violation: Map.JsonConfig forbids top-level 'version' attribute")
+
+        # 5. Required fields
+        for req_key in ("license", "description", "sources", "mediawikiCategories", "data"):
+            if req_key not in data:
+                raise ValueError(f"Schema violation: missing required field '{req_key}'")
+
+        # 6. License check
+        valid_licenses = {"CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-3.0", "CC-BY-SA-3.0", "CC0-1.0"}
+        if data["license"] not in valid_licenses:
+            raise ValueError(f"Suspicious license: '{data['license']}' not in approved set: {valid_licenses}")
+
+        # 7. Description check
+        desc = data["description"]
+        if not isinstance(desc, dict) or "en" not in desc or not desc["en"].strip():
+            raise ValueError("Schema violation: description must be a dict with non-empty 'en' string")
+
+        # 8. Sources check
+        sources = data["sources"]
+        if not isinstance(sources, str) or len(sources.strip()) < 30:
+            raise ValueError("Schema violation: sources wikitext is suspiciously short or empty")
+        if "zenodo" not in sources.lower() and "doi" not in sources.lower():
+            raise ValueError("Provenance check failed: sources wikitext does not cite Zenodo/DOI")
+
+        # 9. Categories check
+        cats = data["mediawikiCategories"]
+        if not isinstance(cats, list) or len(cats) == 0:
+            raise ValueError("Schema violation: mediawikiCategories must be a non-empty list")
+        for cat in cats:
+            if not isinstance(cat, dict) or "name" not in cat or "sort" not in cat:
+                raise ValueError(f"Schema violation: category entry must have 'name' and 'sort': {cat}")
+            cat_name = cat["name"]
+            if not cat_name.startswith("Linguistic maps of ") and cat_name != "Linguistic maps by language mapped":
+                raise ValueError(f"Suspicious category name in mediawikiCategories: '{cat_name}'")
+            if not str(cat["sort"]).strip():
+                raise ValueError(f"Category sort key is empty in: {cat}")
+
+        # 10. GeoJSON Data check
+        geojson = data["data"]
+        if not isinstance(geojson, dict) or geojson.get("type") != "FeatureCollection":
+            raise ValueError("Schema violation: 'data' must be a GeoJSON FeatureCollection")
+        features = geojson.get("features")
+        if not isinstance(features, list) or len(features) == 0:
+            raise ValueError("Schema violation: 'features' must be a non-empty list")
+
+        for f_idx, feat in enumerate(features):
+            if not isinstance(feat, dict) or feat.get("type") != "Feature":
+                raise ValueError(f"Feature [{f_idx}] is not a valid GeoJSON Feature")
+            geom = feat.get("geometry")
+            if not isinstance(geom, dict) or "type" not in geom or "coordinates" not in geom:
+                raise ValueError(f"Feature [{f_idx}] has invalid geometry")
+
+            def check_coords(c, path=""):
+                if isinstance(c, (int, float)):
+                    return
+                elif isinstance(c, list):
+                    if len(c) == 2 and isinstance(c[0], (int, float)) and isinstance(c[1], (int, float)):
+                        lon, lat = c[0], c[1]
+                        if not (-180.0 <= lon <= 180.0 and -90.0 <= lat <= 90.0):
+                            raise ValueError(f"Coordinate out of WGS84 bounds at {path}: lon={lon}, lat={lat}")
+                    else:
+                        for idx, sub in enumerate(c):
+                            check_coords(sub, f"{path}[{idx}]")
+                else:
+                    raise ValueError(f"Suspicious coordinate value {type(c)} at {path}")
+
+            check_coords(geom["coordinates"], f"features[{f_idx}]")
 
     def upload_map(
         self,
@@ -415,11 +550,13 @@ class WikimediaClient:
     ) -> Dict[str, Any]:
         """
         Edits / creates a .map page in the Data: namespace on Wikimedia Commons.
-        Also categorizes the talk page under 'Category:Map data of languages'
-        and ensures the language category exists.
+        Performs ultra-strict pre-flight sanity checks and halts immediately on any anomaly.
         """
+        # 1. Ultra-strict schema and geometry validation before touching the network
+        self.validate_map_payload(page_title, content_json)
+
         if self.config.dry_run:
-            logger.info("[DRY RUN] Would upload map to %s (summary: %s)", page_title, summary)
+            logger.info("[DRY RUN] Passed validation. Would upload map to %s (summary: %s)", page_title, summary)
             if language_name:
                 self.ensure_language_category(language_name)
                 self.ensure_talk_page(page_title, language_name)
@@ -430,21 +567,24 @@ class WikimediaClient:
                 "dry_run": True
             }
 
-        # Check existing content
-        if not recreate:
-            exists, existing_content = self.page_exists(page_title)
-            if exists and existing_content:
-                # Compare stripped content
-                if existing_content.strip() == content_json.strip():
-                    logger.info("Page %s already exists with identical content. Skipping.", page_title)
-                    return {
-                        "result": "Skipped",
-                        "page_title": page_title,
-                        "url": f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(page_title)}",
-                        "reason": "identical_content"
-                    }
+        # 2. Check if page already exists on Commons
+        exists, existing_content = self.page_exists(page_title)
+        if exists:
+            if existing_content and existing_content.strip() == content_json.strip():
+                logger.info("Page %s already exists with identical content. Safely skipping.", page_title)
+                return {
+                    "result": "Skipped",
+                    "page_title": page_title,
+                    "url": f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(page_title)}",
+                    "reason": "identical_content"
+                }
+            elif not recreate:
+                raise RuntimeError(
+                    f"CRITICAL SAFETY HALT: Target page {page_title} already exists on Wikimedia Commons! "
+                    "Refusing to overwrite existing community content to prevent unintended modifications."
+                )
 
-        logger.info("Uploading map data to %s...", page_title)
+        logger.info("Uploading verified map data to %s...", page_title)
         token = self.get_csrf_token()
 
         edit_data = {
@@ -459,22 +599,35 @@ class WikimediaClient:
         }
 
         res = self._api_request("POST", {"action": "edit"}, data=edit_data)
+
+        # 3. Check for any warnings or abnormal flags
+        if "warnings" in res:
+            logger.warning("MediaWiki edit warnings for %s: %s", page_title, res["warnings"])
+
         edit_info = res.get("edit", {})
 
-        if edit_info.get("result") == "Success":
-            logger.info("Successfully uploaded %s to Commons (rev %s)", page_title, edit_info.get("newrevid"))
-            if language_name:
-                try:
-                    self.ensure_language_category(language_name)
-                    self.ensure_talk_page(page_title, language_name)
-                except Exception as cat_err:
-                    logger.warning("Could not set categories/talk page for %s: %s", page_title, cat_err)
+        if "spamblacklist" in edit_info:
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Spam blacklist triggered for {page_title}: {edit_info['spamblacklist']}")
+        if "abusefilter" in edit_info:
+            raise RuntimeError(f"CRITICAL SAFETY HALT: AbuseFilter triggered for {page_title}: {edit_info['abusefilter']}")
+        if "captcha" in edit_info:
+            raise RuntimeError(f"CRITICAL SAFETY HALT: CAPTCHA encountered for {page_title}! Halting immediately.")
+        if edit_info.get("result") != "Success":
+            raise WikimediaAPIError("upload_failed", f"Failed uploading {page_title}: {res}", res)
 
-            return {
-                "result": "Success",
-                "page_title": page_title,
-                "newrevid": edit_info.get("newrevid"),
-                "url": f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(page_title)}",
-            }
-        else:
-            raise WikimediaAPIError("upload_failed", f"Failed to upload {page_title}: {res}", res)
+        logger.info("Successfully uploaded %s to Commons (rev %s)", page_title, edit_info.get("newrevid"))
+
+        if language_name:
+            try:
+                self.ensure_language_category(language_name)
+                self.ensure_talk_page(page_title, language_name)
+            except Exception as cat_err:
+                logger.error("Error setting categories/talk page for %s: %s", page_title, cat_err)
+                raise
+
+        return {
+            "result": "Success",
+            "page_title": page_title,
+            "newrevid": edit_info.get("newrevid"),
+            "url": f"https://commons.wikimedia.org/wiki/{urllib.parse.quote(page_title)}",
+        }
