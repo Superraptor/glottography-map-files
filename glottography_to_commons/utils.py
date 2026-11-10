@@ -639,6 +639,9 @@ def optimize_map_payload(
             final_bytes=best_stats["final_bytes"]
         )
         sources_text = best_payload.get("sources", "")
+        marker = "* '''Compression & Optimization''':"
+        if marker in sources_text:
+            sources_text = sources_text.split(marker)[0].rstrip()
         best_payload["sources"] = sources_text + prov_note
 
     return best_payload, best_stats
