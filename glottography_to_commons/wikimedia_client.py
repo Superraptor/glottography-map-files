@@ -615,10 +615,12 @@ class WikimediaClient:
 
         # 3. Check for any warnings or abnormal flags
         if "warnings" in res:
-            logger.warning("MediaWiki edit warnings for %s: %s", page_title, res["warnings"])
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Warnings returned by MediaWiki API for {page_title}: {res['warnings']}")
 
         edit_info = res.get("edit", {})
 
+        if "warning" in edit_info:
+            raise RuntimeError(f"CRITICAL SAFETY HALT: Edit warning returned by MediaWiki API for {page_title}: {edit_info['warning']}")
         if "spamblacklist" in edit_info:
             raise RuntimeError(f"CRITICAL SAFETY HALT: Spam blacklist triggered for {page_title}: {edit_info['spamblacklist']}")
         if "abusefilter" in edit_info:
