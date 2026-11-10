@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from glottography_to_commons.config import Config
 from glottography_to_commons.wikimedia_client import WikimediaClient
+from glottography_to_commons.utils import calculate_center_and_zoom
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("update_maps")
@@ -29,27 +30,48 @@ def main():
     cfg = Config.from_env()
     client = WikimediaClient(cfg)
     
-    logger.info("Authenticating bot on Wikimedia Commons...")
-    if not client.login():
-        logger.error("Bot authentication failed! Halting.")
-        sys.exit(1)
-    
     tasks = [
         {
             "name": "Northern Ju",
             "page_title": "Data:Glottography Northern Ju (vase1234) - glottography dataset deri.map",
             "file_path": "data/generated_maps/glottography_northern_ju_vase1234_glottography_dataset_deri.map",
-            "summary": "Updating map data with framed zoom and center coordinates, and normalized sort key",
+            "summary": "Adjusting map framing zoom to 6 for optimal view",
             "language_name": "Northern Ju"
         },
         {
             "name": "Standard Arabic",
             "page_title": "Data:Glottography Standard Arabic (stan1318) - glottography dataset deri.map",
             "file_path": "data/generated_maps/glottography_standard_arabic_stan1318_glottography_dataset_deri.map",
-            "summary": "Updating map data with framed zoom and center coordinates",
+            "summary": "Adjusting map framing zoom to 2 for optimal view",
             "language_name": "Standard Arabic"
         }
     ]
+    
+    # 1. Update local files with new zoom
+    for item in tasks:
+        p = item["file_path"]
+        with open(p, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        lat, lon, z = calculate_center_and_zoom(d["data"]["features"])
+        old_z = d.get("zoom")
+        d["latitude"] = lat
+        d["longitude"] = lon
+        d["zoom"] = z
+        logger.info("%s: lat=%.5f, lon=%.5f, zoom=%d (was %s)", item["name"], lat, lon, z, old_z)
+        
+        compact = json.dumps(d, separators=(",", ":"), ensure_ascii=False)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(compact)
+            
+        export_p = p.replace("data/generated_maps", "data/export/maps")
+        if os.path.exists(os.path.dirname(export_p)):
+            with open(export_p, "w", encoding="utf-8") as f:
+                f.write(compact)
+    
+    logger.info("Authenticating bot on Wikimedia Commons...")
+    if not client.login():
+        logger.error("Bot authentication failed! Halting.")
+        sys.exit(1)
     
     results = []
     

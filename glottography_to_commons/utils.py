@@ -169,15 +169,26 @@ def extract_all_coordinates(coords: Any) -> List[Tuple[float, float]]:
     return []
 
 
+def lat_to_mercator_y(lat: float) -> float:
+    """Projects latitude in degrees to Web Mercator Y in [0, 1]."""
+    lat = max(-85.05112878, min(85.05112878, lat))
+    rad = math.radians(lat)
+    return 0.5 - (math.log(math.tan(math.pi / 4.0 + rad / 2.0)) / (2.0 * math.pi))
+
+
 def calculate_center_and_zoom(
     features: List[Dict[str, Any]],
-    padding_factor: float = 0.8
+    target_width: float = 480.0,
+    target_height: float = 320.0,
+    margin: float = 0.12
 ) -> Tuple[float, float, int]:
     """
     Computes geographical center (latitude, longitude) and optimal
     Kartographer zoom level (1 to 16) to frame all features into view.
     Ensures small regional or local language maps are zoomed directly into frame
     instead of defaulting to an unzoomed world map.
+
+    Uses Web Mercator projection bounds fitted to a standard preview viewport.
 
     Returns:
         (latitude, longitude, zoom)
@@ -204,23 +215,23 @@ def calculate_center_and_zoom(
     center_lon = max(-180.0, min(180.0, center_lon))
 
     d_lon = max(max_lon - min_lon, 0.005)
-    d_lat = max(max_lat - min_lat, 0.005)
 
-    # 360 deg longitude visible at zoom 0
-    zoom_lon = math.log2(360.0 / d_lon)
+    y_min = lat_to_mercator_y(max_lat)
+    y_max = lat_to_mercator_y(min_lat)
+    d_y = max(y_max - y_min, 0.0001)
 
-    # Mercator latitude stretching correction at center_lat
-    lat_rad = math.radians(center_lat)
-    cos_lat = max(math.cos(lat_rad), 0.15)
-    zoom_lat = math.log2(180.0 / (d_lat / cos_lat))
+    avail_w = target_width * (1.0 - margin)
+    avail_h = target_height * (1.0 - margin)
 
-    # Apply padding so the polygon doesn't press against viewport edges
-    raw_zoom = min(zoom_lon, zoom_lat) - padding_factor
+    zoom_lon = math.log2((avail_w / 256.0) * (360.0 / d_lon))
+    zoom_lat = math.log2((avail_h / 256.0) / d_y)
+
+    raw_zoom = min(zoom_lon, zoom_lat)
     zoom = max(1, min(16, int(math.floor(raw_zoom))))
 
     # Single point or identical extrema
     if max_lon == min_lon and max_lat == min_lat:
-        zoom = 8
+        zoom = 9
 
     return round(center_lat, 5), round(center_lon, 5), zoom
 
