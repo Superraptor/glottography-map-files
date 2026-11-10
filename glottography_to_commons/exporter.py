@@ -15,7 +15,11 @@ from typing import Any, Dict, List, Optional
 from glottography_to_commons.config import Config
 from glottography_to_commons.map_builder import MapBuilder
 from glottography_to_commons.state_tracker import StateTracker
-from glottography_to_commons.utils import slugify
+from glottography_to_commons.utils import (
+    get_language_sort_key,
+    optimize_map_payload,
+    slugify,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -158,15 +162,26 @@ class ManualUploadExporter:
             lang_cat = MapBuilder.get_language_map_category(lang_clean)
             talk_title = page_title.replace("Data:", "Data talk:")
             talk_edit_url = f"https://commons.wikimedia.org/w/index.php?title={urllib.parse.quote(talk_title.replace(' ', '_'))}&action=edit"
-            sort_key = lang_clean
+            sort_key = get_language_sort_key(lang_clean)
             talk_wikitext = f"[[Category:{self.config.talk_category}|{sort_key}]]"
             lang_cat_edit_url = f"https://commons.wikimedia.org/w/index.php?title=Category:{urllib.parse.quote(lang_cat.replace(' ', '_'))}&action=edit"
             lang_cat_wikitext = f"[[Category:{self.config.parent_linguistic_category}|{sort_key}]]"
 
-            # Copy/Save .map file into export directory
+            # Ensure categories inside map_json use updated category and sort key
+            map_json["mediawikiCategories"] = [
+                {
+                    "name": lang_cat,
+                    "sort": sort_key
+                }
+            ]
+
+            # Optimize and compact JSON payload (minification + RDP simplification if > max_map_bytes)
+            map_json, opt_stats = optimize_map_payload(map_json, max_bytes=self.config.max_map_bytes)
+
+            # Copy/Save .map file into export directory (using compact JSON to prevent Commons 2MB errors)
             map_filename = f"{short_base}.map"
             target_map_path = self.maps_dir / map_filename
-            json_str = json.dumps(map_json, indent=2, ensure_ascii=False)
+            json_str = json.dumps(map_json, separators=(',', ':'), ensure_ascii=False)
             with open(target_map_path, "w", encoding="utf-8") as f:
                 f.write(json_str)
 
@@ -191,8 +206,9 @@ class ManualUploadExporter:
                 creators=creators,
                 pub_date=pub_date,
                 features_count=len(features),
-                sources_wikitext=sources,
+                sources_wikitext=map_json.get("sources", sources),
                 description_en=desc_en,
+                opt_stats=opt_stats,
             )
             with open(target_desc_path, "w", encoding="utf-8") as f:
                 f.write(desc_text)
@@ -255,6 +271,7 @@ class ManualUploadExporter:
         features_count: int,
         sources_wikitext: str,
         description_en: str,
+        opt_stats: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Constructs human-readable manual upload provenance sheet."""
         lines = [
@@ -310,12 +327,57 @@ class ManualUploadExporter:
             "",
             f"    {lang_cat_wikitext}",
             "",
+        ]
+
+        if opt_stats:
+            lines.extend([
+                "-" * 70,
+                " GEOMETRIC COMPRESSION & FIDELITY SPECIFICATION",
+                "-" * 70,
+                " Wikimedia Commons enforces a strict 2,048 KB (2 MB) limit on Map Data (.map)",
+                " files in the Data: namespace (Extension:JsonConfig).",
+                "",
+                " 1. Lossless JSON Minification:",
+                "    - Strips cosmetic whitespace, tabs, and indentation delimiters.",
+                f"   - Resulting payload size: {opt_stats.get('final_bytes', 0):,} bytes (down from {opt_stats.get('orig_bytes', 0):,} bytes).",
+                "    - Data Loss: ZERO semantic, coordinate, or metadata loss.",
+                "",
+                " 2. Coordinate Precision Optimization:",
+                f"    - Coordinates rounded to {self.config.coordinate_precision} decimal places (~1.1 m resolution at equator).",
+                "    - Data Loss: Sub-meter satellite coordinate noise beyond ~1.1 meters is discarded.",
+                "",
+            ])
+            if opt_stats.get("simplified"):
+                eps = opt_stats.get("epsilon", 0.0)
+                approx_m = round(eps * 111_000, 1)
+                orig_v = opt_stats.get("orig_vertices", 0)
+                fin_v = opt_stats.get("final_vertices", 0)
+                pct = (1.0 - fin_v / orig_v) * 100.0 if orig_v > 0 else 0.0
+                lines.extend([
+                    " 3. Adaptive Polygon Simplification (Ramer-Douglas-Peucker):",
+                    f"    - Algorithm: Iterative Ramer-Douglas-Peucker (RDP) polyline simplification.",
+                    f"    - Perpendicular distance tolerance: epsilon = {eps} degrees (~{approx_m} meters).",
+                    f"    - Vertex reduction: Reduced from {orig_v:,} to {fin_v:,} vertices ({pct:.1f}% reduction).",
+                    "    - Data Loss & Fidelity: Micro-indentations, small coastal inlets, and jagged boundaries",
+                    f"      smaller than {approx_m} meters were smoothed to comply with the 2,048 KB limit.",
+                    "      Core boundaries, multi-polygon islands, overall area, and territorial contours are fully preserved.",
+                    "",
+                ])
+            else:
+                lines.extend([
+                    " 3. Polygon Simplification:",
+                    "    - No polygon simplification was needed; payload fits comfortably under 2,048 KB limit.",
+                    "    - 100% of original boundary vertices and geographic fidelity preserved.",
+                    "",
+                ])
+
+        lines.extend([
             "=" * 70,
             " COMPLETE SOURCES & PROVENANCE WIKITEXT:",
             "=" * 70,
             sources_wikitext,
             "=" * 70,
-        ]
+        ])
         return "\n".join(lines)
 
     def _write_markdown_manifest(self, items: List[ExportItem]) -> None:

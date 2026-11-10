@@ -309,8 +309,9 @@ class WikimediaClient:
         """
         Categorizes the Data talk: page under 'Category:Map data of languages'.
         """
+        from glottography_to_commons.utils import get_language_sort_key
         talk_title = page_title.replace("Data:", "Data talk:")
-        sort_key = language_name.strip() if language_name else ""
+        sort_key = get_language_sort_key(language_name) if language_name else ""
         wikitext = f"[[Category:{self.config.talk_category}|{sort_key}]]"
         summary = f"Categorizing map data under Category:{self.config.talk_category}"
 
@@ -345,11 +346,12 @@ class WikimediaClient:
         'Category:Linguistic maps by language mapped'.
         """
         from glottography_to_commons.map_builder import MapBuilder
+        from glottography_to_commons.utils import get_language_sort_key
         lang_cat = MapBuilder.get_language_map_category(language_name)
         cat_title = f"Category:{lang_cat}"
-        clean_lang = language_name.strip()
-        wikitext = f"[[Category:{self.config.parent_linguistic_category}|{clean_lang}]]\n"
-        summary = f"Creating linguistic map subcategory for {language_name} under [[Category:{self.config.parent_linguistic_category}]]"
+        sort_key = get_language_sort_key(language_name)
+        wikitext = f"[[Category:{self.config.parent_linguistic_category}|{sort_key}]]\n"
+        summary = f"Creating linguistic map subcategory for {sort_key} under [[Category:{self.config.parent_linguistic_category}]]"
 
         if self.config.dry_run:
             logger.info("[DRY RUN] Would ensure language category %s with content: %s", cat_title, wikitext.strip())

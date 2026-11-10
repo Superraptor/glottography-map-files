@@ -94,6 +94,48 @@ class TestMapBuilder(unittest.TestCase):
         self.assertNotIn("version", data)
         self.assertEqual(data["license"], "CC-BY-4.0")
 
+    def test_standard_language_category_and_sort_key(self):
+        # Test "Standard Arabic"
+        arabic_bundle = LanguageMapBundle(
+            glottocode="stan1318",
+            language_name="Standard Arabic",
+            iso639_3=None,
+            features=[
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[0.0, 20.0], [1.0, 20.0], [1.0, 21.0], [0.0, 21.0], [0.0, 20.0]]]
+                    },
+                    "properties": {"title": "Standard Arabic"}
+                }
+            ],
+            dataset_slug="test_slug"
+        )
+        payload, _ = self.builder.build_map_data(arabic_bundle, self.record)
+        cats = payload.get("mediawikiCategories", [])
+        self.assertEqual(len(cats), 1)
+        self.assertEqual(cats[0]["name"], "Linguistic maps of the Arabic language")
+        self.assertEqual(cats[0]["sort"], "Arabic")
+
+        # Test category helper directly
+        self.assertEqual(
+            MapBuilder.get_language_map_category("Standard Arabic"),
+            "Linguistic maps of the Arabic language"
+        )
+        self.assertEqual(
+            MapBuilder.get_language_map_category("Standard English"),
+            "Linguistic maps of the English language"
+        )
+        self.assertEqual(
+            MapBuilder.get_language_map_category("Standard Indonesian"),
+            "Linguistic maps of the Indonesian language"
+        )
+        self.assertEqual(
+            MapBuilder.get_language_map_category("Croatian Standard"),
+            "Linguistic maps of the Croatian language"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

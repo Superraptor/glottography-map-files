@@ -145,7 +145,7 @@ class Pipeline:
         logger.info("Completed Step 2: %d maps generated and tracked.", total_maps_generated)
         return total_maps_generated
 
-    def upload_maps(self, limit: Optional[int] = None) -> int:
+    def upload_maps(self, limit: Optional[int] = None, glottocode: Optional[str] = None) -> int:
         """
         Step 3: Upload generated .map files to Wikimedia Commons, respecting rate limits.
         """
@@ -173,6 +173,15 @@ class Pipeline:
                 unique_pending.append(m)
         pending_maps = unique_pending
         logger.info("Found %d distinct pending maps to upload.", len(pending_maps))
+
+        if glottocode:
+            glottocode_clean = glottocode.strip().lower()
+            pending_maps = [
+                m for m in pending_maps
+                if m["glottocode"].lower() == glottocode_clean
+                or glottocode_clean in m["language_name"].lower()
+            ]
+            logger.info("Filtered to %d pending maps matching '%s'.", len(pending_maps), glottocode)
 
         if limit and limit > 0:
             logger.info("Limiting upload to first %d maps as requested.", limit)
@@ -207,11 +216,13 @@ class Pipeline:
                     language_name=lang
                 )
                 url = res.get("url", f"https://commons.wikimedia.org/wiki/{page_title}")
-                self.tracker.record_map_uploaded(map_id, url)
+                if not self.config.dry_run:
+                    self.tracker.record_map_uploaded(map_id, url)
                 uploaded_count += 1
             except Exception as e:
                 logger.error("Failed uploading %s: %s", page_title, e)
-                self.tracker.record_map_upload_failed(map_id, str(e))
+                if not self.config.dry_run:
+                    self.tracker.record_map_upload_failed(map_id, str(e))
                 raise
 
         logger.info("Completed Step 3: Successfully processed %d map uploads.", uploaded_count)

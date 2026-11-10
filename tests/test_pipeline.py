@@ -82,17 +82,21 @@ class TestPipelineIntegration(unittest.TestCase):
             ])
             self.assertIn(data["mediawikiCategories"][0]["sort"], ["English", "Southern Quechua"])
 
-        # 3. Upload maps (dry run)
-        uploaded_count = self.pipeline.upload_maps()
-        self.assertEqual(uploaded_count, 2)
+        # 3. Upload maps with glottocode filter (dry run)
+        filtered_uploaded = self.pipeline.upload_maps(glottocode="stan1295")
+        self.assertEqual(filtered_uploaded, 1)
 
-        # 4. Check statistics in SQLite
+        # Upload without filter (dry run sees both pending)
+        all_uploaded = self.pipeline.upload_maps()
+        self.assertEqual(all_uploaded, 2)
+
+        # 4. Check statistics in SQLite (in dry-run mode, database records remain pending)
         stats = self.pipeline.tracker.get_statistics()
         self.assertEqual(stats["total_datasets"], 1)
         self.assertEqual(stats["downloaded_datasets"], 1)
         self.assertEqual(stats["total_maps"], 2)
-        self.assertEqual(stats["uploaded_maps"], 2)
-        self.assertEqual(stats["pending_maps"], 0)
+        self.assertEqual(stats["uploaded_maps"], 0)
+        self.assertEqual(stats["pending_maps"], 2)
         self.assertEqual(stats["unique_languages"], 2)
 
 

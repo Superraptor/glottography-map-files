@@ -12,7 +12,9 @@ from typing import Any, Dict, Optional, Tuple
 from glottography_to_commons.config import Config
 from glottography_to_commons.parser import LanguageMapBundle
 from glottography_to_commons.utils import (
+    get_language_sort_key,
     normalize_license,
+    optimize_map_payload,
     sanitize_title,
     slugify,
 )
@@ -118,25 +120,30 @@ class MapBuilder:
         Derives the linguistic map category name under 'Category:Linguistic maps by language mapped'.
         e.g. 'Northern Ju' -> 'Linguistic maps of the Northern Ju language'
              'English' -> 'Linguistic maps of the English language'
+             'Standard Arabic' -> 'Linguistic maps of the Arabic language'
              'Modern Greek' -> 'Linguistic maps of the Modern Greek language'
         """
         clean = language_name.strip()
         if not clean or clean.lower().startswith("language unknown"):
             return "Linguistic maps by language mapped"
 
-        lower = clean.lower()
+        # Languages with "Standard" (e.g. "Standard Arabic", "Standard English")
+        # are categorized under the base language name without "Standard"
+        cat_lang = get_language_sort_key(clean)
+
+        lower = cat_lang.lower()
         if lower.endswith("languages"):
             if lower.startswith("the "):
-                return f"Linguistic maps of {clean}"
-            return f"Linguistic maps of the {clean}"
+                return f"Linguistic maps of {cat_lang}"
+            return f"Linguistic maps of the {cat_lang}"
         elif lower.endswith("language"):
             if lower.startswith("the "):
-                return f"Linguistic maps of {clean}"
-            return f"Linguistic maps of the {clean}"
+                return f"Linguistic maps of {cat_lang}"
+            return f"Linguistic maps of the {cat_lang}"
         else:
             if lower.startswith("the "):
-                return f"Linguistic maps of {clean} language"
-            return f"Linguistic maps of the {clean} language"
+                return f"Linguistic maps of {cat_lang} language"
+            return f"Linguistic maps of the {cat_lang} language"
 
     def build_map_data(
         self,
@@ -156,10 +163,11 @@ class MapBuilder:
         # Placed under Category:Linguistic maps of the <Language> language
         # (subcategorized under Category:Linguistic maps by language mapped)
         lang_cat = self.get_language_map_category(bundle.clean_name)
+        sort_key = get_language_sort_key(bundle.clean_name)
         categories = [
             {
                 "name": lang_cat,
-                "sort": bundle.clean_name
+                "sort": sort_key
             }
         ]
 
@@ -192,20 +200,17 @@ class MapBuilder:
 
         map_data, page_title = self.build_map_data(bundle, record)
 
-        # Serialize to formatted JSON
-        content_json = json.dumps(map_data, indent=2, ensure_ascii=False)
+        # Optimize payload (lossless minification, plus adaptive RDP polygon simplification if > max_map_bytes)
+        map_data, opt_stats = optimize_map_payload(map_data, max_bytes=self.config.max_map_bytes)
+        content_json = json.dumps(map_data, separators=(',', ':'), ensure_ascii=False)
         content_bytes = content_json.encode("utf-8")
         size_bytes = len(content_bytes)
 
-        if size_bytes > self.config.max_map_bytes:
-            logger.warning(
-                "Map payload for %s (%d bytes) exceeds safe Commons threshold (%d bytes). Compacting JSON...",
-                page_title, size_bytes, self.config.max_map_bytes
+        if opt_stats.get("simplified"):
+            logger.info(
+                "Map payload for %s required RDP simplification (eps=%.4f): %d -> %d vertices, %d bytes",
+                page_title, opt_stats["epsilon"], opt_stats["orig_vertices"], opt_stats["final_vertices"], size_bytes
             )
-            # Compact whitespace
-            content_json = json.dumps(map_data, separators=(',', ':'), ensure_ascii=False)
-            content_bytes = content_json.encode("utf-8")
-            size_bytes = len(content_bytes)
 
         # Generate local filename based on title (bounded to prevent Windows MAX_PATH errors)
         base_slug = slugify(page_title.replace("Data:", "").replace(".map", ""))

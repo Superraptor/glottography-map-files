@@ -42,7 +42,7 @@ def cmd_process(args, config: Config) -> None:
 def cmd_upload(args, config: Config) -> None:
     """Execute upload to Wikimedia Commons step."""
     pipeline = Pipeline(config)
-    pipeline.upload_maps(limit=args.limit)
+    pipeline.upload_maps(limit=args.limit, glottocode=getattr(args, "glottocode", None))
 
 
 def cmd_run(args, config: Config) -> None:
@@ -143,6 +143,7 @@ def main() -> int:
 
     # Subcommand: upload
     p_up = subparsers.add_parser("upload", parents=[common_args], help="Upload generated .map files to Wikimedia Commons")
+    p_up.add_argument("--glottocode", type=str, default=None, help="Filter uploads by Glottocode or language name")
     p_up.set_defaults(func=cmd_upload)
 
     # Subcommand: export (manual upload package)
