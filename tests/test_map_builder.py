@@ -84,6 +84,13 @@ class TestMapBuilder(unittest.TestCase):
         self.assertEqual(payload["data"]["type"], "FeatureCollection")
         self.assertEqual(len(payload["data"]["features"]), 1)
 
+        # Check framing zoom and center
+        self.assertIn("zoom", payload)
+        self.assertIn("latitude", payload)
+        self.assertIn("longitude", payload)
+        self.assertIsInstance(payload["zoom"], int)
+        self.assertTrue(1 <= payload["zoom"] <= 18)
+
     def test_save_map_file(self):
         gen_map = self.builder.save_map_file(self.bundle, self.record)
         self.assertIsNotNone(gen_map)

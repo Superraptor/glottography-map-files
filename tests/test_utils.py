@@ -7,6 +7,7 @@ from pathlib import Path
 
 from glottography_to_commons.utils import (
     ALLOWED_COMMONS_LICENSES,
+    calculate_center_and_zoom,
     get_language_sort_key,
     normalize_license,
     optimize_map_payload,
@@ -164,6 +165,37 @@ class TestUtils(unittest.TestCase):
         self.assertLess(stats["final_vertices"], stats["orig_vertices"])
         self.assertIn("Compression & Optimization", opt_payload["sources"])
         self.assertIn("Ramer-Douglas-Peucker", opt_payload["sources"])
+
+    def test_calculate_center_and_zoom(self):
+        # Small language (span 0.1 deg ~ 11 km)
+        small_features = [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[36.5, 6.1], [36.6, 6.1], [36.6, 6.2], [36.5, 6.2], [36.5, 6.1]]]
+                }
+            }
+        ]
+        lat, lon, zoom = calculate_center_and_zoom(small_features)
+        self.assertAlmostEqual(lat, 6.15, places=2)
+        self.assertAlmostEqual(lon, 36.55, places=2)
+        self.assertTrue(8 <= zoom <= 12, f"Expected framed zoom for small language, got {zoom}")
+
+        # Global language (span 360 deg)
+        world_features = [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [
+                        [[[-170.0, -40.0], [170.0, -40.0], [170.0, 60.0], [-170.0, 60.0], [-170.0, -40.0]]]
+                    ]
+                }
+            }
+        ]
+        w_lat, w_lon, w_zoom = calculate_center_and_zoom(world_features)
+        self.assertTrue(1 <= w_zoom <= 2, f"Expected global zoom 1 or 2, got {w_zoom}")
 
 
 if __name__ == "__main__":

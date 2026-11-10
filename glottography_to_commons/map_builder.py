@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional, Tuple
 from glottography_to_commons.config import Config
 from glottography_to_commons.parser import LanguageMapBundle
 from glottography_to_commons.utils import (
+    calculate_center_and_zoom,
     get_language_sort_key,
     normalize_license,
     optimize_map_payload,
@@ -171,11 +172,17 @@ class MapBuilder:
             }
         ]
 
+        # Calculate bounding box center and optimal framing zoom level
+        center_lat, center_lon, zoom = calculate_center_and_zoom(bundle.features)
+
         # Standard Commons Map Data Schema
         map_payload = {
             "license": license_str,
             "description": description_obj,
             "sources": sources_wikitext,
+            "zoom": zoom,
+            "latitude": center_lat,
+            "longitude": center_lon,
             "mediawikiCategories": categories,
             "data": {
                 "type": "FeatureCollection",

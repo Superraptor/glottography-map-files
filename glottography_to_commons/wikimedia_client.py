@@ -511,6 +511,17 @@ class WikimediaClient:
             if not str(cat["sort"]).strip():
                 raise ValueError(f"Category sort key is empty in: {cat}")
 
+        # 9b. Optional zoom, latitude, longitude check (Kartographer map framing)
+        if "zoom" in data:
+            if not isinstance(data["zoom"], int) or not (0 <= data["zoom"] <= 18):
+                raise ValueError(f"Schema violation: 'zoom' must be an integer between 0 and 18, got: {data['zoom']}")
+        if "latitude" in data:
+            if not isinstance(data["latitude"], (int, float)) or not (-90.0 <= data["latitude"] <= 90.0):
+                raise ValueError(f"Schema violation: 'latitude' must be between -90 and 90, got: {data['latitude']}")
+        if "longitude" in data:
+            if not isinstance(data["longitude"], (int, float)) or not (-180.0 <= data["longitude"] <= 180.0):
+                raise ValueError(f"Schema violation: 'longitude' must be between -180 and 180, got: {data['longitude']}")
+
         # 10. GeoJSON Data check
         geojson = data["data"]
         if not isinstance(geojson, dict) or geojson.get("type") != "FeatureCollection":

@@ -16,6 +16,7 @@ from glottography_to_commons.config import Config
 from glottography_to_commons.map_builder import MapBuilder
 from glottography_to_commons.state_tracker import StateTracker
 from glottography_to_commons.utils import (
+    calculate_center_and_zoom,
     get_language_sort_key,
     optimize_map_payload,
     slugify,
@@ -52,6 +53,9 @@ class ExportItem:
     sources_wikitext: str
     description_en: str
     json_content: str
+    zoom: int = 2
+    latitude: float = 0.0
+    longitude: float = 0.0
 
 
 class ManualUploadExporter:
@@ -175,6 +179,17 @@ class ManualUploadExporter:
                 }
             ]
 
+            # Ensure zoom, latitude, and longitude are present to frame the map on Commons
+            if "zoom" in map_json and "latitude" in map_json and "longitude" in map_json:
+                zoom = int(map_json["zoom"])
+                center_lat = float(map_json["latitude"])
+                center_lon = float(map_json["longitude"])
+            else:
+                center_lat, center_lon, zoom = calculate_center_and_zoom(features)
+                map_json["zoom"] = zoom
+                map_json["latitude"] = center_lat
+                map_json["longitude"] = center_lon
+
             # Optimize and compact JSON payload (minification + RDP simplification if > max_map_bytes)
             map_json, opt_stats = optimize_map_payload(map_json, max_bytes=self.config.max_map_bytes)
 
@@ -209,6 +224,9 @@ class ManualUploadExporter:
                 sources_wikitext=map_json.get("sources", sources),
                 description_en=desc_en,
                 opt_stats=opt_stats,
+                zoom=zoom,
+                latitude=center_lat,
+                longitude=center_lon,
             )
             with open(target_desc_path, "w", encoding="utf-8") as f:
                 f.write(desc_text)
@@ -239,6 +257,9 @@ class ManualUploadExporter:
                 sources_wikitext=sources,
                 description_en=desc_en,
                 json_content=json_str,
+                zoom=zoom,
+                latitude=center_lat,
+                longitude=center_lon,
             )
             items.append(item)
 
@@ -272,6 +293,9 @@ class ManualUploadExporter:
         sources_wikitext: str,
         description_en: str,
         opt_stats: Optional[Dict[str, Any]] = None,
+        zoom: int = 2,
+        latitude: float = 0.0,
+        longitude: float = 0.0,
     ) -> str:
         """Constructs human-readable manual upload provenance sheet."""
         lines = [
@@ -288,6 +312,8 @@ class ManualUploadExporter:
             f" Talk Page Category        : Category:{self.config.talk_category}",
             f" Content Model             : JsonConfig (.map)",
             f" License                   : {license}",
+            f" Framed Zoom Level         : {zoom} (framing bounding box)",
+            f" Framed Center Coordinates : {latitude:.4f}°, {longitude:.4f}°",
             "-" * 70,
             " LANGUAGE & DATASET METADATA",
             "-" * 70,
@@ -442,6 +468,9 @@ class ManualUploadExporter:
                 "Publication_Date",
                 "License",
                 "Features_Count",
+                "Zoom_Level",
+                "Center_Latitude",
+                "Center_Longitude",
                 "Map_Relative_Path",
                 "Description_Relative_Path",
             ])
@@ -463,6 +492,9 @@ class ManualUploadExporter:
                     item.publication_date,
                     item.license,
                     item.features_count,
+                    item.zoom,
+                    item.latitude,
+                    item.longitude,
                     item.map_rel_path,
                     item.description_rel_path,
                 ])
@@ -492,6 +524,9 @@ class ManualUploadExporter:
                 "dataset": it.dataset_title,
                 "creators": it.creators,
                 "features": it.features_count,
+                "zoom": it.zoom,
+                "lat": it.latitude,
+                "lon": it.longitude,
                 "map_rel": it.map_rel_path,
                 "desc_rel": it.description_rel_path,
                 "sources": it.sources_wikitext,
@@ -735,7 +770,10 @@ class ManualUploadExporter:
           <td>
             ${{it.glottocode !== "unknown" ? `<a href="https://glottolog.org/resource/languoid/id/${{it.glottocode}}" target="_blank">${{it.glottocode}}</a>` : '<span style="color:#888;">unknown</span>'}}
           </td>
-          <td><code style="font-size:11px;">${{it.page_title}}</code></td>
+          <td>
+            <code style="font-size:11px;">${{it.page_title}}</code><br>
+            <span style="font-size:11px; color:var(--text-muted);">Framed Zoom: <strong>${{it.zoom}}</strong> (${{it.lat}}&deg;, ${{it.lon}}&deg;)</span>
+          </td>
           <td>
             <a href="https://commons.wikimedia.org/wiki/Category:${{encodeURIComponent(it.lang_cat.replace(/ /g, '_'))}}" target="_blank" class="badge badge-cat">${{it.lang_cat}}</a>
           </td>

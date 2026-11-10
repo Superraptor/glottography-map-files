@@ -5,6 +5,7 @@ license normalization, title sanitization, and safe archive extraction.
 
 import json
 import logging
+import math
 import os
 import re
 import zipfile
@@ -152,6 +153,76 @@ def round_coordinates(coords: Any, precision: int = 5) -> Any:
     elif isinstance(coords, (list, tuple)):
         return [round_coordinates(c, precision) for c in coords]
     return coords
+
+
+def extract_all_coordinates(coords: Any) -> List[Tuple[float, float]]:
+    """Recursively extracts all [lon, lat] pairs from arbitrary nested GeoJSON coordinate structures."""
+    if not coords:
+        return []
+    if isinstance(coords, (list, tuple)):
+        if len(coords) >= 2 and isinstance(coords[0], (int, float)) and isinstance(coords[1], (int, float)):
+            return [(float(coords[0]), float(coords[1]))]
+        pts = []
+        for item in coords:
+            pts.extend(extract_all_coordinates(item))
+        return pts
+    return []
+
+
+def calculate_center_and_zoom(
+    features: List[Dict[str, Any]],
+    padding_factor: float = 0.8
+) -> Tuple[float, float, int]:
+    """
+    Computes geographical center (latitude, longitude) and optimal
+    Kartographer zoom level (1 to 16) to frame all features into view.
+    Ensures small regional or local language maps are zoomed directly into frame
+    instead of defaulting to an unzoomed world map.
+
+    Returns:
+        (latitude, longitude, zoom)
+    """
+    all_pts = []
+    for f in features:
+        geom = f.get("geometry", {})
+        coords = geom.get("coordinates")
+        if coords:
+            all_pts.extend(extract_all_coordinates(coords))
+
+    if not all_pts:
+        return 0.0, 0.0, 2
+
+    min_lon = min(pt[0] for pt in all_pts)
+    max_lon = max(pt[0] for pt in all_pts)
+    min_lat = min(pt[1] for pt in all_pts)
+    max_lat = max(pt[1] for pt in all_pts)
+
+    center_lat = (min_lat + max_lat) / 2.0
+    center_lon = (min_lon + max_lon) / 2.0
+
+    center_lat = max(-85.0, min(85.0, center_lat))
+    center_lon = max(-180.0, min(180.0, center_lon))
+
+    d_lon = max(max_lon - min_lon, 0.005)
+    d_lat = max(max_lat - min_lat, 0.005)
+
+    # 360 deg longitude visible at zoom 0
+    zoom_lon = math.log2(360.0 / d_lon)
+
+    # Mercator latitude stretching correction at center_lat
+    lat_rad = math.radians(center_lat)
+    cos_lat = max(math.cos(lat_rad), 0.15)
+    zoom_lat = math.log2(180.0 / (d_lat / cos_lat))
+
+    # Apply padding so the polygon doesn't press against viewport edges
+    raw_zoom = min(zoom_lon, zoom_lat) - padding_factor
+    zoom = max(1, min(16, int(math.floor(raw_zoom))))
+
+    # Single point or identical extrema
+    if max_lon == min_lon and max_lat == min_lat:
+        zoom = 8
+
+    return round(center_lat, 5), round(center_lon, 5), zoom
 
 
 def validate_coordinates(coords: Any) -> Tuple[bool, Optional[str]]:
