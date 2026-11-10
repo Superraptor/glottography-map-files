@@ -482,9 +482,14 @@ def optimize_map_payload(
     features = map_payload.get("data", {}).get("features", [])
     total_vertices = sum(count_geometry_vertices(f.get("geometry", {})) for f in features)
 
-    epsilons = [force_epsilon] if force_epsilon else [0.0003, 0.0005, 0.001, 0.002, 0.005]
+    # Check both compact size and 4-space formatted size (to guarantee that even if opened
+    # and copied from a browser JSON viewer that auto-formats with 4 spaces, it stays under 2,048 KB)
+    indent4_json = json.dumps(map_payload, indent=4, ensure_ascii=False)
+    orig_indent4_bytes = len(indent4_json.encode('utf-8'))
 
-    needs_simplification = (orig_bytes > max_bytes) or (force_epsilon is not None)
+    epsilons = [force_epsilon] if force_epsilon else [0.0003, 0.0005, 0.001, 0.0015, 0.002, 0.005]
+
+    needs_simplification = (orig_bytes > max_bytes) or (orig_indent4_bytes > max_bytes) or (force_epsilon is not None)
 
     if not needs_simplification:
         stats = {
@@ -521,9 +526,12 @@ def optimize_map_payload(
             "features": new_features
         }
 
-        # Check candidate size
+        # Check candidate size in both compact and indent=4 format
         test_json = json.dumps(candidate_payload, separators=(',', ':'), ensure_ascii=False)
         test_bytes = len(test_json.encode('utf-8'))
+
+        test_indent4 = json.dumps(candidate_payload, indent=4, ensure_ascii=False)
+        test_indent4_bytes = len(test_indent4.encode('utf-8'))
 
         best_payload = candidate_payload
         best_stats = {
@@ -535,7 +543,8 @@ def optimize_map_payload(
             "epsilon": eps
         }
 
-        if test_bytes <= max_bytes and force_epsilon is None:
+        # Safe limit: both compact JSON and browser 4-space formatted JSON must be <= max_bytes
+        if test_bytes <= max_bytes and test_indent4_bytes <= max_bytes and force_epsilon is None:
             break
 
     # Append provenance notes to sources
